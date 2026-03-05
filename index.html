@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ventas J$F - Catálogo</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0f172a; color: white; font-family: sans-serif; }
+        .card { background: #1e293b; border: 1px solid #334155; transition: 0.3s; }
+        .card:hover { transform: translateY(-5px); border-color: #38bdf8; }
+    </style>
+</head>
+<body class="p-8">
+	<div class="fixed top-4 right-4 bg-sky-600 px-4 py-2 rounded-full font-bold shadow-2xl z-50">
+    💰 Pesos JyF: <span id="saldo">0</span>
+	</div>
+    <header class="text-center mb-12">
+        <h1 class="text-4xl font-bold text-sky-400">Ventas JyF</h1>
+        <p class="text-slate-400">Tecnología en La Plata • Ganá Pesos JyF</p>
+    </header>
+
+    <div id="grilla" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        </div>
+
+    <script>
+		let totalPesosJyF = 0;
+
+			function simularCompra(nombre, precio, regalo) {
+		let usaPuntos = false;
+		if (totalPesosJyF > 0) {
+			usaPuntos = confirm(`Tenés ${totalPesosJyF} Pesos JyF. ¿Querés usarlos para pagar parte o el total de los $${precio}?`);
+		}
+
+		const confirmar = confirm(`¿Confirmás la compra de ${nombre}?`);
+		
+		if (confirmar) {
+			if (usaPuntos) {
+				// LÓGICA DE BILLETERA:
+				if (totalPesosJyF >= precio) {
+					// Caso A: Los puntos cubren TODO el precio
+					totalPesosJyF -= precio;
+					alert(`¡Pagado totalmente con puntos! Te quedan ${totalPesosJyF} Pesos JyF.`);
+				} else {
+					// Caso B: Los puntos NO alcanzan, se gasta lo que hay y el resto es ARS
+					const resto = precio - totalPesosJyF;
+					totalPesosJyF = 0;
+					alert(`Usaste todos tus puntos. Debés abonar $${resto} en ARS.`);
+				}
+				// Importante: Si usa puntos, decidimos que NO suma el regalo de esta compra
+			} else {
+				// Caso C: Paga normal, suma el regalo
+				totalPesosJyF += regalo;
+				alert(`¡Compra realizada! Sumaste ${regalo} Pesos JyF.`);
+			}
+			
+			// Actualizamos el numerito en la esquina
+			document.getElementById('saldo').innerText = totalPesosJyF;
+		}
+	}
+		
+        const URL_DB = 'https://owqhwspijzgqbqfepwet.supabase.co';
+        const KEY_DB = 'sb_publishable_xtcojs1TGWAVVYeSyHLGZA_CroOg6dF';
+        
+        // Inicializamos el cliente (Ojo: usamos el objeto global 'supabase')
+        const client = supabase.createClient(URL_DB, KEY_DB);
+
+        async function cargarProductos() {
+            console.log("Intentando cargar productos...");
+            const { data, error } = await client.from('productos').select('*');
+            
+            if (error) {
+                console.error('Error de Supabase:', error);
+                return;
+            }
+
+            const grilla = document.getElementById('grilla');
+            if (data.length === 0) {
+                grilla.innerHTML = "<p>No hay productos en la base de datos.</p>";
+                return;
+            }
+
+			grilla.innerHTML = data.map(p => {    // Creamos el link de WhatsApp con el mensaje predefinido
+				const mensaje = encodeURIComponent(`¡Hola! Me interesa el producto: ${p.nombre}. Vi que el precio es $${p.precio_venta}. ¡Quiero mis Pesos JyF!`);
+				const linkWS = `https://wa.me/+5492216567905?text=${mensaje}`;
+	
+				return `
+				<div class="card rounded-xl overflow-hidden p-4 shadow-lg flex flex-col h-full">
+					<img src="${p.imagen_url}" class="w-full h-48 object-cover rounded-lg mb-4" onerror="this.src='https://via.placeholder.com/300x200?text=Imagen+Próximamente'">
+					
+					<h2 class="text-lg font-semibold mb-2 line-clamp-2 flex-grow">${p.nombre}</h2>
+					
+					<div class="flex justify-between items-center mb-4">
+						<span class="text-2xl font-bold text-white">$${p.precio_venta}</span>
+						<span class="text-sm text-slate-500 line-through">$${p.precio_referencia_ml}</span>
+					</div>
+					
+					        <a href="${linkWS}" target="_blank" class="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg mb-4 transition duration-300">
+								Pedir por WhatsApp 📱
+							</a>
+							<button onclick="simularCompra('${p.nombre}', ${p.precio_venta}, ${p.pesos_jsf_regalo})" 
+								class="bg-sky-600 hover:bg-sky-500 text-white font-bold py-2 px-4 rounded-lg mb-4 transition duration-300">
+								Comprar Directo 🛒
+							</button>
+					
+					<div class="bg-sky-500/10 border border-sky-500/50 rounded-lg p-3 text-center mt-auto">
+						<span class="text-sky-400 font-bold text-sm text-nowrap">🎁 +${p.pesos_jsf_regalo} Pesos JyF de regalo</span>
+					</div>
+				</div>
+			`}).join('');
+        }
+
+        cargarProductos();
+    </script>
+</body>
+</html>
