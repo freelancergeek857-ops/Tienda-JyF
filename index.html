@@ -19,6 +19,7 @@
     <header class="text-center mb-12">
         <h1 class="text-4xl font-bold text-sky-400">Tienda JyF</h1>
         <p class="text-slate-400">Comprá lo que te encanta 🤩 • Ganá Pesos JyF 💸 • Llevatelo todo 🎁 </p>
+		<p class="text-slate-600 font-bold">VERSIÓN DEVELOPMENT</p>
     </header>
 
     <div id="grilla" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -27,41 +28,41 @@
     <script>
 		let totalPesosJyF = 0;
 
-			function simularCompra(nombre, precio, regalo) {
-		let usaPuntos = false;
-		if (totalPesosJyF > 0) {
-			usaPuntos = confirm(`Tenés ${totalPesosJyF} Pesos JyF. ¿Querés usarlos para pagar parte o el total de los $${precio}?`);
-		}
-
-		const confirmar = confirm(`¿Confirmás la compra de ${nombre}?`);
-		
-		if (confirmar) {
-			if (usaPuntos) {
-				// LÓGICA DE BILLETERA:
-				if (totalPesosJyF >= precio) {
-					// Caso A: Los puntos cubren TODO el precio
-					totalPesosJyF -= precio;
-					alert(`¡Pagado totalmente con puntos! Te quedan ${totalPesosJyF} Pesos JyF.`);
-				} else {
-					// Caso B: Los puntos NO alcanzan, se gasta lo que hay y el resto es ARS
-					const resto = precio - totalPesosJyF;
-					totalPesosJyF = 0;
-					alert(`Usaste todos tus puntos. Debés abonar $${resto} en ARS.`);
-				}
-				// Importante: Si usa puntos, decidimos que NO suma el regalo de esta compra
-			} else {
-				// Caso C: Paga normal, suma el regalo
-				totalPesosJyF += regalo;
-				alert(`¡Compra realizada! Sumaste ${regalo} Pesos JyF.`);
-			}
+		function simularCompra(nombre, precio, regalo) {
+			// 1. Primero confirmamos la intención de compra
+			const confirmar = confirm(`¿Confirmás la compra de ${nombre} por $${precio}?`);
 			
-			// Actualizamos el numerito en la esquina
-			document.getElementById('saldo').innerText = totalPesosJyF;
+			if (confirmar) {
+				let usaPuntos = false;
+
+				// 2. Si confirmó, y tiene puntos, recién ahí preguntamos por el método de pago
+				if (totalPesosJyF > 0) {
+					usaPuntos = confirm(`Tenés ${totalPesosJyF} Pesos JyF. ¿Querés usarlos para pagar parte o el total de los $${precio}?`);
+				}
+
+				if (usaPuntos) {
+					// LÓGICA DE BILLETERA
+					if (totalPesosJyF >= precio) {
+						totalPesosJyF -= precio;
+						alert(`¡Pagado totalmente con puntos! Te quedan ${totalPesosJyF} Pesos JyF.`);
+					} else {
+						const resto = precio - totalPesosJyF;
+						totalPesosJyF = 0;
+						alert(`Usaste todos tus puntos. Debés abonar $${resto} en ARS.`);
+					}
+				} else {
+					// Caso C: Paga normal, suma el regalo
+					totalPesosJyF += regalo;
+					alert(`¡Compra realizada! Sumaste ${regalo} Pesos JyF.`);
+				}
+				
+				// Actualizamos la UI
+				document.getElementById('saldo').innerText = totalPesosJyF;
+			}
 		}
-	}
 		
-        const URL_DB = 'https://owqhwspijzgqbqfepwet.supabase.co';
-        const KEY_DB = 'sb_publishable_xtcojs1TGWAVVYeSyHLGZA_CroOg6dF';
+        const URL_DB = 'https://itkuzqbjofryhatachyz.supabase.co';
+        const KEY_DB = 'sb_publishable_FYhPcYO61lzuv-Y2P9LmaQ_miOQ2cVH';
         
         // Inicializamos el cliente (Ojo: usamos el objeto global 'supabase')
         const client = supabase.createClient(URL_DB, KEY_DB);
@@ -87,7 +88,7 @@
 	
 				return `
 				<div class="card rounded-xl overflow-hidden p-4 shadow-lg flex flex-col h-full">
-					<img src="${p.imagen_url}" class="w-full h-48 object-cover rounded-lg mb-4" onerror="this.src='https://via.placeholder.com/300x200?text=Imagen+Próximamente'">
+					<img src="${p.imagen_url}" class="w-full h-48 object-cover rounded-lg mb-4" onerror="this.src='https://images.wondershare.com/repairit/article/error-image-error-loading-2.jpg'">
 					
 					<h2 class="text-lg font-semibold mb-2 line-clamp-2 flex-grow">${p.nombre}</h2>
 					
