@@ -5,30 +5,48 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tienda JyF - Búnker Alpha</title>
     
+    <style>
+        body { 
+            background-color: #0f172a; 
+            color: white; 
+            font-family: sans-serif; 
+            margin: 0; 
+            opacity: 0; /* Empezamos invisible */
+            transition: opacity 0.3s ease-in;
+        }
+        /* La pantalla de carga DEBE verse inmediatamente */
+        #pantalla-carga {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: #0f172a;
+            z-index: 9999;
+        }
+    </style>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 
     <style>
-        body { background-color: #0f172a; color: white; font-family: sans-serif; margin: 0; }
         .card { background: #1e293b; border: 1px solid #334155; transition: 0.3s; }
         .card:hover { transform: translateY(-5px); border-color: #38bdf8; }
         
-        /* Animación de brillo para el logo */
         .brillo-logo { filter: drop-shadow(0 0 15px rgba(56, 189, 248, 0.8)); }
         @keyframes latido {
             0%, 100% { transform: scale(1); opacity: 1; }
             50% { transform: scale(1.1); opacity: 0.7; }
         }
         .animar-logo { animation: latido 2s infinite ease-in-out; }
-
-        /* Suavizado de transiciones entre secciones */
         .seccion { transition: opacity 0.5s ease; }
-        .hidden { display: none; opacity: 0; }
+        .hidden { display: none !important; }
     </style>
 </head>
-<body>
+<body onload="revelarCuerpo()">
 
-    <div id="pantalla-carga" class="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#0f172a]">
+    <div id="pantalla-carga">
         <div class="brillo-logo animar-logo mb-6 text-7xl">💎</div>
         <h1 class="text-4xl font-bold text-sky-400">Tienda JyF</h1>
         <p class="text-slate-500 italic mt-4 animate-pulse">Sincronizando con el búnker de Leo...</p>
@@ -51,39 +69,35 @@
         <div class="fixed top-4 right-4 bg-sky-600 px-4 py-2 rounded-full font-bold shadow-2xl z-50 border border-sky-400">
             💰 Pesos JyF: <span id="saldo">0</span>
         </div>
-
         <header class="text-center mb-12">
             <h1 class="text-4xl font-bold text-sky-400">Tienda JyF</h1>
             <p class="text-slate-400">Comprá lo que te encanta 🤩 • Ganá Pesos JyF 💸 • Llevatelo todo 🎁</p>
         </header>
-
-        <div id="grilla" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            </div>
+        <div id="grilla" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"></div>
     </div>
 
     <script>
-        // VARIABLES GLOBALES
         let totalPesosJyF = 0;
         const URL_DB = 'https://itkuzqbjofryhatachyz.supabase.co';
         const KEY_DB = 'sb_publishable_FYhPcYO61lzuv-Y2P9LmaQ_miOQ2cVH';
         const client = supabase.createClient(URL_DB, KEY_DB);
         const IMG_PLACEHOLDER = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQx5RMPoanaRwX5s3ytHXNmVHD-QKcyR_5Aeg&s";
 
-        // CONTROL DE NAVEGACIÓN
-        window.onload = () => {
+        // Función para revelar el cuerpo sin parpadeos
+        function revelarCuerpo() {
+            document.body.style.opacity = "1";
             setTimeout(() => {
-                document.getElementById('pantalla-carga').style.display = 'none';
+                document.getElementById('pantalla-carga').classList.add('hidden');
                 const login = document.getElementById('seccion-login');
                 login.classList.remove('hidden');
                 login.style.opacity = '1';
-            }, 2500); // Un poquito menos de tiempo para no aburrir
-        };
+            }, 2500); 
+        }
 
         function simularIngreso(e) {
             const btn = e.currentTarget;
             btn.innerHTML = `Verificando Hardware ID...`;
             btn.classList.add('opacity-50', 'pointer-events-none');
-
             setTimeout(() => {
                 document.getElementById('seccion-login').classList.add('hidden');
                 const catalogo = document.getElementById('seccion-catalogo');
@@ -93,38 +107,26 @@
             }, 1500);
         }
 
-        // LÓGICA DE PRODUCTOS
         async function cargarProductos() {
             const grilla = document.getElementById('grilla');
-            
-            // 1. Mostrar Placeholders (Animación de carga interna)
             grilla.innerHTML = Array(4).fill(0).map(() => `
                 <div class="card rounded-xl overflow-hidden p-4 shadow-lg flex flex-col h-full animate-pulse">
                     <div class="w-full h-48 bg-slate-700 rounded-lg mb-4"></div>
                     <div class="h-6 bg-slate-700 rounded w-3/4 mb-4"></div>
                     <div class="h-10 bg-slate-700 rounded mt-auto"></div>
-                </div>
-            `).join('');
+                </div>`).join('');
 
-            // 2. Traer data real
             const { data, error } = await client.from('productos').select('*');
-            
             if (error) {
-                console.error('Error:', error);
                 grilla.innerHTML = `<p class="text-red-400 col-span-full">Error al conectar con el búnker de datos.</p>`;
                 return;
             }
 
-            // 3. Renderizar productos
             grilla.innerHTML = data.map(p => {
                 const linkWS = `https://wa.me/+5492216567905?text=${encodeURIComponent('¡Hola! Me interesa ' + p.nombre)}`;
                 return `
                 <div class="card rounded-xl overflow-hidden p-4 shadow-lg flex flex-col h-full">
-                    <img src="${p.imagen_url}" 
-                         class="w-full h-48 object-cover rounded-lg mb-4" 
-                         onerror="this.src='${IMG_PLACEHOLDER}'"
-                         loading="lazy">
-                    
+                    <img src="${p.imagen_url}" class="w-full h-48 object-cover rounded-lg mb-4" onerror="this.src='${IMG_PLACEHOLDER}'" loading="lazy">
                     <h2 class="text-lg font-semibold mb-2 flex-grow">${p.nombre}</h2>
                     <div class="flex justify-between items-center mb-4">
                         <span class="text-2xl font-bold">$${p.precio_venta}</span>
