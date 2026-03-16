@@ -14,9 +14,8 @@ async function solicitarAccesoMágico() {
 
     btn.disabled = true;
     btn.innerText = "Validando...";
-	
-	// --- AQUÍ ESTÁ EL CAMBIO ---
-    // Forzamos la URL completa para que GitHub Pages no se pierda
+    
+    // Forzamos la URL completa para GitHub Pages
     const urlRedireccion = "https://freelancergeek857-ops.github.io/Tienda-JyF/";
 
     const { error } = await client.auth.signInWithOtp({
@@ -25,7 +24,6 @@ async function solicitarAccesoMágico() {
             emailRedirectTo: urlRedireccion 
         }
     });
-    // ---------------------------
 
     if (error) {
         alert("Error: " + error.message);
@@ -35,23 +33,9 @@ async function solicitarAccesoMágico() {
         btn.classList.add('hidden');
         aviso.classList.remove('hidden');
     }
+}
 
-    /* const { error } = await client.auth.signInWithOtp({
-        email: email,
-        options: { emailRedirectTo: window.location.origin }
-    });
-
-    if (error) {
-        alert("Error: " + error.message);
-        btn.disabled = false;
-        btn.innerText = "Pedir Llave Mágica ✨";
-    } else {
-        btn.classList.add('hidden');
-        aviso.classList.remove('hidden');
-    }
-} */
-
-// 2. GENERADOR DE HASH SHA-256 (El "DNI" del hardware)
+// 2. GENERADOR DE HASH SHA-256
 async function generarHashDispositivo(email, whatsapp) {
     const hardwareInfo = [
         navigator.userAgent,
@@ -67,12 +51,11 @@ async function generarHashDispositivo(email, whatsapp) {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// 3. DETECTOR DE REGRESO DEL MAIL
+// 3. DETECTOR DE ESTADO
 client.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN') {
         const user = session.user;
 
-        // Buscamos el perfil en la DB
         const { data: perfil, error } = await client
             .from('perfiles')
             .select('*')
@@ -80,10 +63,8 @@ client.auth.onAuthStateChange(async (event, session) => {
             .single();
 
         if (!perfil) {
-            // USUARIO NUEVO: Registro y creación de Hash
             await registrarNuevoUsuario(user);
         } else {
-            // USUARIO EXISTENTE: Verificar Blindaje de Dispositivo
             verificarDispositivo(perfil);
         }
     }
@@ -94,13 +75,11 @@ async function registrarNuevoUsuario(user) {
     const whatsapp = prompt("Ingresá tu WhatsApp para activar tus 500 Pesos JyF:");
     
     if (!whatsapp || !nombre) {
-        alert("Datos obligatorios para la tienda.");
+        alert("Datos obligatorios.");
         return client.auth.signOut();
     }
 
     const miHash = await generarHashDispositivo(user.email, whatsapp);
-    
-    // Guardamos el Hash localmente en este navegador
     localStorage.setItem('jyf_bunker_key', miHash);
 
     const { error } = await client.from('perfiles').insert([{
@@ -109,7 +88,7 @@ async function registrarNuevoUsuario(user) {
         nombre_google: nombre,
         whatsapp: whatsapp,
         hash_dispositivo: miHash,
-        pesos_jyf: 500 // Regalo inicial
+        pesos_jyf: 500 
     }]);
 
     if (error) {
@@ -122,13 +101,10 @@ async function registrarNuevoUsuario(user) {
 
 function verificarDispositivo(perfil) {
     const hashLocal = localStorage.getItem('jyf_bunker_key');
-
     if (hashLocal === perfil.hash_dispositivo) {
-        // COINCIDE: Pasa al catálogo
         if (typeof entrarAlCatalogo === "function") entrarAlCatalogo();
     } else {
-        // NO COINCIDE: Posible intruso o cambio de dispositivo
-        alert("Acceso Denegado: Este dispositivo no coincide con el registrado para esta cuenta.");
+        alert("Acceso Denegado: Dispositivo no reconocido.");
         client.auth.signOut();
     }
 }
