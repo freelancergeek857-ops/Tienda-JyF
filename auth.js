@@ -82,7 +82,6 @@ async function registrarNuevoUsuario(user) {
             nombre_google: nombre, 
             whatsapp: wa, 
             hash_dispositivo: miHash, // Se guarda en la DB
-            pesos_jyf: 500 
         }
     ]);
 
