@@ -1,0 +1,57 @@
+/* --- BASE DE LA TIENDA --- */
+html, body {
+    background-color: #0f172a !important; 
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+}
+
+body { 
+    color: white; 
+    font-family: sans-serif; 
+    opacity: 0; 
+    transition: opacity 0.5s ease-in;
+}
+
+/* --- CENTRADO TOTAL --- */
+#pantalla-carga {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #0f172a;
+    z-index: 9999;
+	transition: opacity 0.5s ease-in-out;
+}
+
+/* --- EFECTOS DE LA IMAGEN --- */
+#img-homenaje {
+    filter: grayscale(100%) blur(10px);
+    transition: filter 1.2s ease-in-out;
+}
+
+#img-homenaje.revelada {
+    filter: grayscale(0%) blur(0px);
+}
+
+/* --- UTILIDADES OBLIGATORIAS --- */
+.hidden { 
+    display: none !important; 
+}
+
+.seccion { 
+    transition: opacity 0.5s ease; 
+}
+
+.card { 
+    background: #1e293b; 
+    border: 1px solid #334155; 
+    transition: 0.3s; 
+}
+
+.card:hover { 
+    transform: translateY(-5px); 
+    border-color: #38bdf8; 
+}
