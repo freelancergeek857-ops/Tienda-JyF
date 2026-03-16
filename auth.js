@@ -4,7 +4,10 @@ const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let registrando = false;
 
-// 1. GENERADOR DE HASH (Hardware + Datos + Tiempo + Random)
+/**
+ * 1. GENERADOR DE HASH (La huella digital del dispositivo)
+ * Mezcla hardware, datos del usuario, tiempo y un factor aleatorio.
+ */
 async function generarHashDispositivo(email, whatsapp) {
     const hardwareInfo = [
         navigator.userAgent,
@@ -20,11 +23,15 @@ async function generarHashDispositivo(email, whatsapp) {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// 2. BOTÓN PRINCIPAL: Acceso Directo o Solicitud de Mail
+/**
+ * 2. SOLICITUD DE ACCESO (Botón Principal)
+ * Verifica si el dispositivo es conocido antes de enviar el Magic Link.
+ */
 async function solicitarAccesoMágico() {
     const email = document.getElementById('email-acceso').value.trim();
     if (!email.endsWith('@gmail.com')) return alert("Solo Gmail");
 
+    // Verificación previa de dispositivo conocido
     const { data: perfil } = await client
         .from('perfiles')
         .select('id, hash_dispositivo')
@@ -41,19 +48,24 @@ async function solicitarAccesoMágico() {
         }
     }
 
+    // Envío de Magic Link
     const { error: authError } = await client.auth.signInWithOtp({
         email,
         options: { emailRedirectTo: window.location.href }
     });
 
-    if (authError) alert(authError.message);
-    else {
+    if (authError) {
+        alert("Error: " + authError.message);
+    } else {
         document.getElementById('btn-acceso').classList.add('hidden');
         document.getElementById('aviso-mail').classList.remove('hidden');
     }
 }
 
-// 3. DETECTOR DE ESTADO (Gestión de Identidad)
+/**
+ * 3. DETECTOR DE ESTADO (Auth Listener)
+ * Se activa al volver del mail o al cargar la página si ya hay sesión.
+ */
 client.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session?.user && !registrando) {
         const user = session.user;
@@ -67,49 +79,62 @@ client.auth.onAuthStateChange(async (event, session) => {
         const localHash = localStorage.getItem('jyf_DB_key');
 
         if (!perfil) {
+            // Caso: Usuario nuevo
             registrando = true;
             await registrarNuevoUsuario(user);
         } else if (perfil.hash_dispositivo !== localHash) {
+            // Caso: Cambio de dispositivo (Recuperación)
             await manejarRecuperacionCuenta(perfil);
         } else {
+            // Caso: Todo OK
             if (typeof entrarAlCatalogo === "function") entrarAlCatalogo();
         }
     }
 });
 
-// 4. REGISTRO DE NUEVO USUARIO
+/**
+ * 4. REGISTRO DE NUEVO USUARIO
+ * Crea la fila inicial con los 500 Pesos JyF de regalo.
+ */
 async function registrarNuevoUsuario(user) {
     const nombre = prompt("¿Cómo te llamas?");
     const wa = prompt("Ingresá tu WhatsApp para activar tus 500 Pesos JyF:");
     
     if (!nombre || !wa) {
-        alert("Datos obligatorios.");
+        alert("El registro es obligatorio.");
         return client.auth.signOut();
     }
 
     const miHash = await generarHashDispositivo(user.email, wa);
     localStorage.setItem('jyf_DB_key', miHash);
 
+    // Registro en la base de datos
     const { error: insError } = await client.from('perfiles').insert([
         { 
-            id: user.id, 
+            id: user.id, // El ID de la tabla debe ser tipo UUID
             email: user.email, 
             nombre_google: nombre, 
             whatsapp: wa, 
-            hash_dispositivo: miHash
+            hash_dispositivo: miHash,
+            pesos_jyf: 500, // Regalo inicial
+            nro_recuperacion: 0
         }
     ]);
 
     if (insError) {
-        alert("Error al crear cuenta: " + insError.message);
+        console.error("Error de RLS o Estructura:", insError);
+        alert("Error al registrar: " + insError.message);
         registrando = false;
     } else {
         alert("¡USUARIO CREADO EXITOSAMENTE! Recibiste 500 Pesos JyF de regalo.");
-        location.reload();
+        window.location.reload(); // Recarga limpia para entrar al catálogo
     }
 }
 
-// 5. MANEJO DE RECUPERACIÓN (Finalizado)
+/**
+ * 5. MANEJO DE RECUPERACIÓN
+ * Controla el límite de cambios de dispositivo (3 veces).
+ */
 async function manejarRecuperacionCuenta(perfil) {
     let nuevoContador = (perfil.nro_recuperacion || 0) + 1;
     let nuevosPesos = perfil.pesos_jyf;
@@ -128,11 +153,12 @@ async function manejarRecuperacionCuenta(perfil) {
     const miHash = await generarHashDispositivo(perfil.email, perfil.whatsapp);
     localStorage.setItem('jyf_DB_key', miHash);
 
+    // Actualizamos la fila existente con el nuevo hash y contador
     await client.from('perfiles').update({
         hash_dispositivo: miHash,
         nro_recuperacion: nuevoContador,
         pesos_jyf: nuevosPesos
     }).eq('id', perfil.id);
 
-    location.reload();
+    window.location.reload();
 }

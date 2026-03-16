@@ -1,6 +1,5 @@
-// Usamos la constante 'client' que ya viene de auth.js, no la creamos de nuevo
-
-let totalPesosJyF = 0; // Variable global para el saldo actual
+// Usamos la constante 'client' que ya viene de auth.js
+let totalPesosJyF = 0; 
 
 const IMG_PLACEHOLDER = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQx5RMPoanaRwX5s3ytHXNmVHD-QKcyR_5Aeg&s";
 
@@ -24,7 +23,7 @@ window.revelarCuerpo = function() {
                         login.classList.remove('hidden');
                         login.style.opacity = '1';
                     }
-                    // IMPORTANTE: Al cargar la web, chequeamos si ya hay sesión
+                    // Iniciamos chequeo de sesión
                     chequearSesionActiva(); 
                 }, 1200);
             }
@@ -38,7 +37,6 @@ window.revelarCuerpo = function() {
     }
 }
 
-// Esta función se encarga de mostrar el catálogo si el usuario ya está logueado
 async function chequearSesionActiva() {
     const { data: { session } } = await client.auth.getSession();
     if (session) {
@@ -46,49 +44,50 @@ async function chequearSesionActiva() {
     }
 }
 
-// Función central para cambiar de pantalla
-function entrarAlCatalogo() {
+async function entrarAlCatalogo() {
+    // Verificamos sesión antes de actuar
+    const { data: { session } } = await client.auth.getSession();
+    if (!session) return;
+
     document.getElementById('seccion-login').classList.add('hidden');
     const catalogo = document.getElementById('seccion-catalogo');
-    catalogo.classList.remove('hidden');
-    catalogo.style.opacity = '1';
+    if (catalogo) {
+        catalogo.classList.remove('hidden');
+        catalogo.style.opacity = '1';
+    }
+    
+    // Ejecutamos las cargas
     cargarProductos();
-    actualizarSaldoUI(); // Traerá los pesos reales de la DB
+    actualizarSaldoUI(); 
 }
 
 async function actualizarSaldoUI() {
-    // 1. Obtenemos el usuario logueado actualmente
     const { data: { user } } = await client.auth.getUser();
     if (!user) return;
 
-    // 2. Pedimos a la tabla 'perfiles' el saldo de ese ID
     const { data: perfil, error } = await client
         .from('perfiles')
         .select('pesos_jyf')
         .eq('id', user.id)
-        .single();
+        .maybeSingle(); // Usamos maybeSingle para evitar errores si aún no existe la fila
 
     if (error) {
-        console.error("Error al obtener saldo:", error.message);
+        console.warn("Saldo no disponible aún:", error.message);
         return;
     }
 
     if (perfil) {
-        // ¡ESTA ES LA CLAVE! 
-        // Actualizamos la variable global para que simularCompra() funcione bien
-        totalPesosJyF = perfil.pesos_jyf; 
-        
-        // Actualizamos el numerito que ve el usuario en la pantalla
+        totalPesosJyF = perfil.pesos_jyf || 0;
         const elSaldo = document.getElementById('saldo');
         if (elSaldo) elSaldo.innerText = totalPesosJyF;
     }
 }
 
-// Cargar Productos
 async function cargarProductos() {
     const grilla = document.getElementById('grilla');
     if (!grilla) return;
     
+    // Skeleton/Carga
     grilla.innerHTML = Array(4).fill(0).map(() => `
         <div class="card rounded-xl overflow-hidden p-4 shadow-lg flex flex-col h-full animate-pulse">
             <div class="w-full h-48 bg-slate-700 rounded-lg mb-4"></div>
@@ -97,8 +96,9 @@ async function cargarProductos() {
         </div>`).join('');
 
     const { data, error } = await client.from('productos').select('*');
+    
     if (error) {
-        grilla.innerHTML = `<p class="text-red-400 col-span-full">Error al conectar con la base de datos.</p>`;
+        grilla.innerHTML = `<p class="text-red-400 col-span-full">Error al conectar: ${error.message}</p>`;
         return;
     }
 
@@ -121,18 +121,16 @@ async function cargarProductos() {
 }
 
 async function procesarCompra(nombre, precio, regalo) {
-    const confirmar = confirm(`¿Confirmás la compra de ${nombre} por $${precio}?`);
-    if (!confirmar) return;
-
-    // 1. Obtenemos el usuario actual
     const { data: { user } } = await client.auth.getUser();
     if (!user) return alert("Debes estar logueado para comprar.");
+
+    const confirmar = confirm(`¿Confirmás la compra de ${nombre} por $${precio}?`);
+    if (!confirmar) return;
 
     let nuevoSaldo = totalPesosJyF;
     let montoMovimiento = 0;
     let motivo = "";
 
-    // 2. Lógica de Puntos
     let usoPuntos = false;
     if (totalPesosJyF > 0) {
         usoPuntos = confirm(`Tenés ${totalPesosJyF} Pesos JyF. ¿Querés usarlos?`);
@@ -150,38 +148,27 @@ async function procesarCompra(nombre, precio, regalo) {
             motivo = `Pago parcial: ${nombre}. Restante: $${resto}`;
         }
     } else {
-        // Pago tradicional: Suma el regalo
         montoMovimiento = regalo;
         nuevoSaldo += regalo;
         motivo = `Regalo por compra: ${nombre}`;
     }
 
-    // --- BLOQUE DE BASE DE DATOS ---
-    
-    // A. Actualizamos el saldo en la tabla 'perfiles'
+    // Actualización en DB
     const { error: errPerfil } = await client
         .from('perfiles')
         .update({ pesos_jyf: nuevoSaldo })
         .eq('id', user.id);
 
-    // B. Registramos el movimiento en 'historial_pesos'
     const { error: errHistorial } = await client
         .from('historial_pesos')
-        .insert([
-            { 
-                perfil_id: user.id, 
-                monto: montoMovimiento, 
-                motivo: motivo 
-            }
-        ]);
+        .insert([{ perfil_id: user.id, monto: montoMovimiento, motivo: motivo }]);
 
     if (errPerfil || errHistorial) {
-        alert("Error al sincronizar con la tienda. Reintentando...");
-        console.error(errPerfil, errHistorial);
+        alert("Error al sincronizar. Por favor, reintentá.");
     } else {
-        // C. Si todo salió bien en el Back, actualizamos el Front
         totalPesosJyF = nuevoSaldo;
-        document.getElementById('saldo').innerText = totalPesosJyF;
-        alert(usoPuntos ? "Puntos debitados con éxito." : `¡Ganaste ${regalo} Pesos JyF!`);
+        const elSaldo = document.getElementById('saldo');
+        if (elSaldo) elSaldo.innerText = totalPesosJyF;
+        alert(usoPuntos ? "Puntos aplicados correctamente." : `¡Sumaste ${regalo} Pesos JyF!`);
     }
 }
