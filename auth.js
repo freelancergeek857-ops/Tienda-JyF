@@ -53,16 +53,21 @@ async function generarHashDispositivo(email, whatsapp) {
 
 // 3. DETECTOR DE ESTADO
 client.auth.onAuthStateChange(async (event, session) => {
-    if (event === 'SIGNED_IN') {
+let procesandoRegistro = false; // El cerrojo
+
+client.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session && !procesandoRegistro) {
         const user = session.user;
 
+        // Buscamos si ya tiene perfil
         const { data: perfil, error } = await client
             .from('perfiles')
             .select('*')
             .eq('id', user.id)
-            .single();
+            .maybeSingle(); // maybeSingle es más seguro que single para chequear existencia
 
         if (!perfil) {
+            procesandoRegistro = true; // Cerramos el cerrojo
             await registrarNuevoUsuario(user);
         } else {
             verificarDispositivo(perfil);

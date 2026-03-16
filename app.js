@@ -1,4 +1,7 @@
 // Usamos la constante 'client' que ya viene de auth.js, no la creamos de nuevo
+
+let totalPesosJyF = 0; // Variable global para el saldo actual
+
 const IMG_PLACEHOLDER = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQx5RMPoanaRwX5s3ytHXNmVHD-QKcyR_5Aeg&s";
 
 window.revelarCuerpo = function() {
