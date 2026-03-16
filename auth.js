@@ -4,24 +4,7 @@ const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let registrando = false;
 
-// 1. SOLICITAR MAGIC LINK
-async function solicitarAccesoMágico() {
-    const email = document.getElementById('email-acceso').value.trim();
-    if (!email.endsWith('@gmail.com')) return alert("Solo Gmail");
-    
-    const { error } = await client.auth.signInWithOtp({
-        email,
-        options: { emailRedirectTo: "https://freelancergeek857-ops.github.io/Tienda-JyF/" }
-    });
-
-    if (error) alert(error.message);
-    else {
-        document.getElementById('btn-acceso').classList.add('hidden');
-        document.getElementById('aviso-mail').classList.remove('hidden');
-    }
-}
-
-// 2. GENERADOR DE HASH (La huella digital del dispositivo)
+// 1. GENERADOR DE HASH (Hardware + Datos + Tiempo + Random)
 async function generarHashDispositivo(email, whatsapp) {
     const hardwareInfo = [
         navigator.userAgent,
@@ -30,30 +13,65 @@ async function generarHashDispositivo(email, whatsapp) {
         navigator.hardwareConcurrency || 'unknown'
     ].join('|');
 
-    const semilla = `${hardwareInfo}-${email}-${whatsapp}`;
+    const semilla = `${hardwareInfo}-${email}-${whatsapp}-${Date.now()}-${Math.random()}`;
     const msgUint8 = new TextEncoder().encode(semilla);
     const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// 3. DETECTOR DE ESTADO (LOGIN)
+// 2. BOTÓN PRINCIPAL: Acceso Directo o Solicitud de Mail
+async function solicitarAccesoMágico() {
+    const email = document.getElementById('email-acceso').value.trim();
+    if (!email.endsWith('@gmail.com')) return alert("Solo Gmail");
+
+    const { data: perfil } = await client
+        .from('perfiles')
+        .select('id, hash_dispositivo')
+        .eq('email', email)
+        .maybeSingle();
+
+    if (perfil) {
+        const localHash = localStorage.getItem('jyf_DB_key');
+        if (localHash && localHash === perfil.hash_dispositivo) {
+            alert("¡Identidad confirmada! Entrando a la tienda...");
+            if (typeof entrarAlCatalogo === "function") return entrarAlCatalogo();
+        } else {
+            alert("Dispositivo nuevo detectado. Se requiere validación por email.");
+        }
+    }
+
+    const { error: authError } = await client.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: window.location.href }
+    });
+
+    if (authError) alert(authError.message);
+    else {
+        document.getElementById('btn-acceso').classList.add('hidden');
+        document.getElementById('aviso-mail').classList.remove('hidden');
+    }
+}
+
+// 3. DETECTOR DE ESTADO (Gestión de Identidad)
 client.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session?.user && !registrando) {
         const user = session.user;
         
-        // IMPORTANTE: Solo pedimos las columnas que el RLS permite ver
-        const { data: perfil, error } = await client
+        const { data: perfil } = await client
             .from('perfiles')
-            .select('id, nro_user, email, nombre_google, whatsapp, pesos_jyf') 
+            .select('*')
             .eq('id', user.id)
             .maybeSingle();
+
+        const localHash = localStorage.getItem('jyf_DB_key');
 
         if (!perfil) {
             registrando = true;
             await registrarNuevoUsuario(user);
+        } else if (perfil.hash_dispositivo !== localHash) {
+            await manejarRecuperacionCuenta(perfil);
         } else {
-            // Si ya existe, entramos directo
             if (typeof entrarAlCatalogo === "function") entrarAlCatalogo();
         }
     }
@@ -69,27 +87,52 @@ async function registrarNuevoUsuario(user) {
         return client.auth.signOut();
     }
 
-    // Generamos el hash para este dispositivo
     const miHash = await generarHashDispositivo(user.email, wa);
-    
-    // Lo guardamos en el navegador del usuario (local)
     localStorage.setItem('jyf_DB_key', miHash);
 
-    const { error } = await client.from('perfiles').insert([
+    const { error: insError } = await client.from('perfiles').insert([
         { 
             id: user.id, 
             email: user.email, 
             nombre_google: nombre, 
             whatsapp: wa, 
-            hash_dispositivo: miHash, // Se guarda en la DB
+            hash_dispositivo: miHash
         }
     ]);
 
-    if (error) {
-        alert("Error al registrar: " + error.message);
+    if (insError) {
+        alert("Error al crear cuenta: " + insError.message);
         registrando = false;
     } else {
-        alert("¡Bienvenido! Recibiste 500 Pesos JyF.");
+        alert("¡USUARIO CREADO EXITOSAMENTE! Recibiste 500 Pesos JyF de regalo.");
         location.reload();
     }
+}
+
+// 5. MANEJO DE RECUPERACIÓN (Finalizado)
+async function manejarRecuperacionCuenta(perfil) {
+    let nuevoContador = (perfil.nro_recuperacion || 0) + 1;
+    let nuevosPesos = perfil.pesos_jyf;
+    let advertencia = "";
+
+    if (nuevoContador >= 3) {
+        nuevosPesos = 0;
+        nuevoContador = 0;
+        advertencia = "\n\n⚠️ LÍMITE DE RECUPERACIONES ALCANZADO. Tus Pesos JyF se han reseteado a 0 por seguridad.";
+    } else {
+        advertencia = `\n\nTe quedan ${3 - nuevoContador} intentos antes del reseteo de puntos.`;
+    }
+
+    alert(`¡Hola de nuevo ${perfil.nombre_google}! Detectamos un cambio de dispositivo. Acceso restablecido.${advertencia}`);
+
+    const miHash = await generarHashDispositivo(perfil.email, perfil.whatsapp);
+    localStorage.setItem('jyf_DB_key', miHash);
+
+    await client.from('perfiles').update({
+        hash_dispositivo: miHash,
+        nro_recuperacion: nuevoContador,
+        pesos_jyf: nuevosPesos
+    }).eq('id', perfil.id);
+
+    location.reload();
 }

@@ -96,7 +96,7 @@ async function cargarProductos() {
             <div class="h-10 bg-slate-700 rounded mt-auto"></div>
         </div>`).join('');
 
-    const { data, error } = await client.from('productos').select('id, nro_user, email, nombre_google, whatsapp, pesos_jyf');
+    const { data, error } = await client.from('productos').select('*');
     if (error) {
         grilla.innerHTML = `<p class="text-red-400 col-span-full">Error al conectar con la base de datos.</p>`;
         return;
