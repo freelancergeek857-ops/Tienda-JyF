@@ -14,8 +14,29 @@ async function solicitarAccesoMágico() {
 
     btn.disabled = true;
     btn.innerText = "Validando...";
+	
+	// --- AQUÍ ESTÁ EL CAMBIO ---
+    // Forzamos la URL completa para que GitHub Pages no se pierda
+    const urlRedireccion = "https://freelancergeek857-ops.github.io/Tienda-JyF/";
 
     const { error } = await client.auth.signInWithOtp({
+        email: email,
+        options: { 
+            emailRedirectTo: urlRedireccion 
+        }
+    });
+    // ---------------------------
+
+    if (error) {
+        alert("Error: " + error.message);
+        btn.disabled = false;
+        btn.innerText = "Pedir Llave Mágica ✨";
+    } else {
+        btn.classList.add('hidden');
+        aviso.classList.remove('hidden');
+    }
+
+    /* const { error } = await client.auth.signInWithOtp({
         email: email,
         options: { emailRedirectTo: window.location.origin }
     });
@@ -28,7 +49,7 @@ async function solicitarAccesoMágico() {
         btn.classList.add('hidden');
         aviso.classList.remove('hidden');
     }
-}
+} */
 
 // 2. GENERADOR DE HASH SHA-256 (El "DNI" del hardware)
 async function generarHashDispositivo(email, whatsapp) {
