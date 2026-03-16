@@ -2,6 +2,8 @@ const SUPABASE_URL = 'https://itkuzqbjofryhatachyz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_FYhPcYO61lzuv-Y2P9LmaQ_miOQ2cVH';
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+let procesandoRegistro = false; 
+
 // 1. SOLICITAR MAGIC LINK
 async function solicitarAccesoMágico() {
     const email = document.getElementById('email-acceso').value.trim();
@@ -15,7 +17,6 @@ async function solicitarAccesoMágico() {
     btn.disabled = true;
     btn.innerText = "Validando...";
     
-    // Forzamos la URL completa para GitHub Pages
     const urlRedireccion = "https://freelancergeek857-ops.github.io/Tienda-JyF/";
 
     const { error } = await client.auth.signInWithOtp({
@@ -53,21 +54,17 @@ async function generarHashDispositivo(email, whatsapp) {
 
 // 3. DETECTOR DE ESTADO
 client.auth.onAuthStateChange(async (event, session) => {
-let procesandoRegistro = false; // El cerrojo
-
-client.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session && !procesandoRegistro) {
         const user = session.user;
 
-        // Buscamos si ya tiene perfil
         const { data: perfil, error } = await client
             .from('perfiles')
             .select('*')
             .eq('id', user.id)
-            .maybeSingle(); // maybeSingle es más seguro que single para chequear existencia
+            .maybeSingle(); 
 
         if (!perfil) {
-            procesandoRegistro = true; // Cerramos el cerrojo
+            procesandoRegistro = true; 
             await registrarNuevoUsuario(user);
         } else {
             verificarDispositivo(perfil);
@@ -98,6 +95,7 @@ async function registrarNuevoUsuario(user) {
 
     if (error) {
         alert("Error al registrar: " + error.message);
+        procesandoRegistro = false; // Liberamos por si quiere reintentar
     } else {
         alert("¡Bienvenido! Recibiste 500 Pesos JyF.");
         window.location.reload();
