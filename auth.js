@@ -6,13 +6,15 @@ const SUPABASE_URL = 'https://itkuzqbjofryhatachyz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_FYhPcYO61lzuv-Y2P9LmaQ_miOQ2cVH';
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// Variable global para controlar el flujo de UI
+window.accesoConcedido = false;
 let registrando = false;
+let usuarioPendiente = null;
 
 /**
  * Genera una huella digital única para el dispositivo
  */
 async function generarHashDispositivo(email, whatsapp, salEspecial = "fija") {
-    // Usamos info estable del hardware y navegador
     const hardwareInfo = [screen.width, navigator.language].join('|');
     const semilla = `${hardwareInfo}-${email}-${whatsapp}-${salEspecial}`;
     const msgUint8 = new TextEncoder().encode(semilla);
@@ -33,26 +35,19 @@ async function solicitarAccesoMágico() {
         return mostrarNotificacion("Error", "Por favor, ingresá un correo de Gmail válido.");
     }
 
-    // --- BLOQUEO ANTI-SPAM ---
     btn.disabled = true;
     btn.style.opacity = "0.5";
-    btn.style.cursor = "not-allowed";
     const originalText = btn.innerHTML;
     btn.innerHTML = `<span>Procesando...</span>`;
 
     try {
-        // 1. PRE-CHECK: Consultamos el perfil
         const { data: perfil } = await client.from('perfiles').select('*').eq('email', email).maybeSingle();
         const localHash = localStorage.getItem('jyf_DB_key');
 
-        // --- CASO A: DISPOSITIVO RECONOCIDO (Acceso Instantáneo) ---
         if (perfil && perfil.hash_dispositivo === localHash) {
-            console.log("Caso A: Llave reconocida. Acceso instantáneo.");
             return entrarAlCatalogo(perfil); 
         }
 
-        // --- CASO B y C: REQUIEREN VALIDACIÓN ---
-        // Generamos un ID temporal (nonce) para asegurar que el link solo abra aquí
         const nonce = Math.random().toString(36).substring(2, 15);
         localStorage.setItem('jyf_auth_pending_email', email);
         localStorage.setItem('jyf_auth_nonce', nonce);
@@ -64,7 +59,6 @@ async function solicitarAccesoMágico() {
 
         if (error) throw error;
 
-        // Éxito: Ocultamos controles
         document.getElementById('btn-acceso').classList.add('hidden');
         document.getElementById('email-acceso').classList.add('hidden');
         document.getElementById('aviso-mail').classList.remove('hidden');
@@ -73,7 +67,6 @@ async function solicitarAccesoMágico() {
         console.error(err);
         btn.disabled = false;
         btn.style.opacity = "1";
-        btn.style.cursor = "pointer";
         btn.innerHTML = originalText;
         mostrarNotificacion("Error", "No pudimos procesar la entrada: " + err.message);
     }
@@ -83,19 +76,26 @@ async function solicitarAccesoMágico() {
  * Listener de Auth de Supabase
  */
 client.auth.onAuthStateChange(async (event, session) => {
-    if (accesoConcedido && event !== 'SIGNED_OUT') return;
+    console.log("Evento Auth:", event);
+    
+    // Si detectamos que viene de un link o hay sesión, bloqueamos el login preventivamente
+    if (event === 'SIGNED_IN' || (event === 'INITIAL_SESSION' && session)) {
+        window.accesoConcedido = true;
+    }
 
     if (event === 'SIGNED_IN' && session?.user && !registrando) {
         const localNonce = localStorage.getItem('jyf_auth_nonce');
         const emailCheck = localStorage.getItem('jyf_auth_pending_email');
 
-        // SEGURIDAD: El link debe abrirse en el mismo dispositivo/navegador que lo pidió
         if (!localNonce || emailCheck !== session.user.email) {
-            mostrarNotificacion("⚠️ Seguridad", "Este link no es válido o ya fue usado en otro dispositivo.");
+            if (!localNonce && emailCheck === null) {
+                const { data: perfil } = await client.from('perfiles').select('*').eq('id', session.user.id).maybeSingle();
+                if (perfil) return entrarAlCatalogo(perfil);
+            }
+            mostrarNotificacion("⚠️ Seguridad", "Este link no es válido o ya fue usado.");
             return client.auth.signOut();
         }
 
-        // Limpiamos rastro de seguridad
         localStorage.removeItem('jyf_auth_nonce');
         localStorage.removeItem('jyf_auth_pending_email');
 
@@ -103,47 +103,51 @@ client.auth.onAuthStateChange(async (event, session) => {
         const localHash = localStorage.getItem('jyf_DB_key');
 
         if (!perfil) {
-            // CASO C: Registro nuevo
             registrando = true;
-            await registrarNuevoUsuario(session.user);
+            usuarioPendiente = session.user;
+            entrarAlCatalogo({ pesos_jyf: 500, nombre_google: "Nuevo Usuario" });
+            document.getElementById('modal-registro').classList.remove('hidden');
         } else if (perfil.hash_dispositivo !== localHash) {
-            // CASO B: Recuperación (Nuevo dispositivo)
             await manejarRecuperacionCuenta(perfil);
         } else {
-            // CASO A (Vía link): Hash coincide
             entrarAlCatalogo(perfil);
         }
     }
     
-    // Persistencia tras F5
     if (event === 'INITIAL_SESSION' && session?.user) {
         const { data: perfil } = await client.from('perfiles').select('*').eq('id', session.user.id).maybeSingle();
         if (perfil) entrarAlCatalogo(perfil);
     }
 
     if (event === 'SIGNED_OUT') {
+        window.accesoConcedido = false;
         window.location.reload();
     }
 });
 
-async function registrarNuevoUsuario(user) {
-    const nombre = prompt("¡Bienvenido! ¿Cómo te llamas?");
-    const wa = prompt("WhatsApp para acreditar tus 500 Pesos JyF de regalo:");
-    if (!nombre || !wa) { registrando = false; return client.auth.signOut(); }
+async function procesarRegistroFinal() {
+    const nombre = document.getElementById('reg-nombre').value.trim();
+    const wa = document.getElementById('reg-whatsapp').value.trim();
+    
+    if (!nombre || !wa) {
+        return alert("Por favor, completá tu nombre y WhatsApp.");
+    }
 
-    const miHash = await generarHashDispositivo(user.email, wa, Math.random().toString());
+    const miHash = await generarHashDispositivo(usuarioPendiente.email, wa, Math.random().toString());
     localStorage.setItem('jyf_DB_key', miHash);
     
     await client.from('perfiles').insert({ 
-        id: user.id, 
-        email: user.email, 
+        id: usuarioPendiente.id, 
+        email: usuarioPendiente.email, 
         nombre_google: nombre, 
         whatsapp: wa, 
         hash_dispositivo: miHash, 
         pesos_jyf: 500 
     });
     
-    const { data: nuevoPerfil } = await client.from('perfiles').select('*').eq('id', user.id).single();
+    document.getElementById('modal-registro').classList.add('hidden');
+    registrando = false;
+    const { data: nuevoPerfil } = await client.from('perfiles').select('*').eq('id', usuarioPendiente.id).single();
     entrarAlCatalogo(nuevoPerfil);
 }
 
@@ -151,12 +155,15 @@ async function manejarRecuperacionCuenta(perfil) {
     let nuevoContador = (perfil.nro_recuperacion || 0) + 1;
     let nuevosPesos = perfil.pesos_jyf;
 
+    entrarAlCatalogo(perfil);
+
     if (nuevoContador >= 3) {
         nuevosPesos = 0;
         nuevoContador = 0;
-        mostrarNotificacion("⚠️ Alerta", "Superaste el límite de recuperaciones. Tus puntos han sido reseteados por seguridad.");
+        mostrarNotificacion("⚠️ Seguridad: Puntos Reseteados", "Has alcanzado el límite de 3 recuperaciones. Por seguridad, tus Pesos JyF se han reseteado a 0.");
     } else {
-        mostrarNotificacion("Recuperación", `Dispositivo nuevo detectado. Recuperación ${nuevoContador}/3.`);
+        const restantes = 3 - nuevoContador;
+        mostrarNotificacion("Recuperación de Cuenta", `Detectamos un nuevo dispositivo. Esta es tu recuperación ${nuevoContador}/3. Te queda ${restantes} intento${restantes === 1 ? '' : 's'} antes de que tus puntos se reseteen.`);
     }
 
     const miHash = await generarHashDispositivo(perfil.email, perfil.whatsapp, Math.random().toString());
@@ -168,8 +175,7 @@ async function manejarRecuperacionCuenta(perfil) {
         pesos_jyf: nuevosPesos 
     }).eq('id', perfil.id);
 
-    const { data: perfilActualizado } = await client.from('perfiles').select('*').eq('id', perfil.id).single();
-    entrarAlCatalogo(perfilActualizado);
+    actualizarSaldoUI();
 }
 
 function mostrarNotificacion(titulo, mensaje) {

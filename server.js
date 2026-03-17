@@ -15,5 +15,5 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Búnker JyF corriendo en puerto ${PORT}`);
+  console.log(`Tienda JyF corriendo en puerto ${PORT}`);
 });

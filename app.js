@@ -3,7 +3,6 @@
  */
 
 let totalPesosJyF = 0;
-let accesoConcedido = false;
 
 window.revelarCuerpo = function() {
     document.body.style.opacity = "1";
@@ -21,13 +20,17 @@ window.revelarCuerpo = function() {
             pantalla.style.opacity = "0";
             setTimeout(() => {
                 pantalla.classList.add('hidden');
-                if (!accesoConcedido) chequearSesionActiva();
+                // Solo chequeamos si no hay un proceso de auth en curso (Magic Link)
+                if (!window.accesoConcedido) chequearSesionActiva();
             }, 1000);
         }
     }, 3000);
 }
 
 async function chequearSesionActiva() {
+    // Si auth.js ya concedió acceso (por Magic Link), no hacemos nada
+    if (window.accesoConcedido) return;
+
     const { data: { session } } = await client.auth.getSession();
     
     if (session) {
@@ -41,15 +44,18 @@ async function chequearSesionActiva() {
         if (p) return entrarAlCatalogo(p);
     }
 
-    const login = document.getElementById('seccion-login');
-    if (login) {
-        login.classList.remove('hidden');
-        setTimeout(() => login.style.opacity = "1", 50);
+    // Si después de chequear todo, no hay acceso concedido, mostramos login
+    if (!window.accesoConcedido) {
+        const login = document.getElementById('seccion-login');
+        if (login) {
+            login.classList.remove('hidden');
+            setTimeout(() => login.style.opacity = "1", 50);
+        }
     }
 }
 
 function entrarAlCatalogo(perfilExistente = null) {
-    accesoConcedido = true;
+    window.accesoConcedido = true;
     
     document.getElementById('seccion-login').classList.add('hidden');
     const cat = document.getElementById('seccion-catalogo');
