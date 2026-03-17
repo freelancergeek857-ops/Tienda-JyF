@@ -12,3 +12,5 @@ Log 3: Creación de interfaz de carga de siito y simluación de logueo con cuent
 Log 4: Incorporacion de Cloudflare como fuente serverless del frontend y aplicacion de seguridades en DB (Supabase), etc.
 
 Log 5: Division de codigo en: index.html ; app.js ; style.css (en index usamos TailWind) y creación de carpeta: img.
+
+Log 6: Se consigue un login con correo y base de datos funcional!

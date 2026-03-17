@@ -38,15 +38,18 @@ async function solicitarAccesoMágico() {
         .eq('email', email)
         .maybeSingle();
 
-    if (perfil) {
-        const localHash = localStorage.getItem('jyf_DB_key');
-        if (localHash && localHash === perfil.hash_dispositivo) {
-            alert("¡Identidad confirmada! Entrando a la tienda...");
-            if (typeof entrarAlCatalogo === "function") return entrarAlCatalogo();
-        } else {
-            alert("Dispositivo nuevo detectado. Se requiere validación por email.");
-        }
-    }
+		if (perfil) {
+				const localHash = localStorage.getItem('jyf_DB_key');
+				if (localHash && localHash === perfil.hash_dispositivo) {
+					// En lugar de un alert que frena todo, mandamos directo al catálogo
+					console.log("Dispositivo reconocido. Entrando...");
+					if (typeof entrarAlCatalogo === "function") {
+						return entrarAlCatalogo(); 
+					}
+				} else {
+					alert("Dispositivo nuevo detectado. Se requiere validación por email.");
+				}
+			}
 
     // Envío de Magic Link
     const { error: authError } = await client.auth.signInWithOtp({
@@ -98,36 +101,37 @@ client.auth.onAuthStateChange(async (event, session) => {
  */
 async function registrarNuevoUsuario(user) {
     const nombre = prompt("¿Cómo te llamas?");
-    const wa = prompt("Ingresá tu WhatsApp para activar tus 500 Pesos JyF:");
+    const wa = prompt("WhatsApp para tus 500 Pesos JyF:");
     
-    if (!nombre || !wa) {
-        alert("El registro es obligatorio.");
-        return client.auth.signOut();
-    }
+    if (!nombre || !wa) return client.auth.signOut();
 
     const miHash = await generarHashDispositivo(user.email, wa);
     localStorage.setItem('jyf_DB_key', miHash);
 
-    // Registro en la base de datos
-    const { error: insError } = await client.from('perfiles').insert([
-        { 
-            id: user.id, // El ID de la tabla debe ser tipo UUID
+    // DEBUG para ver qué estamos mandando
+    console.log("Intentando registrar a:", user.id);
+
+    // USAMOS EL CLIENTE CON UNA PEQUEÑA ESPERA O FORZANDO EL ID
+    const { data, error: insError } = await client
+        .from('perfiles')
+        .insert({ 
+            id: user.id, 
             email: user.email, 
             nombre_google: nombre, 
             whatsapp: wa, 
             hash_dispositivo: miHash,
-            pesos_jyf: 500, // Regalo inicial
+            pesos_jyf: 500,
             nro_recuperacion: 0
-        }
-    ]);
+        })
+        .select(); // El .select() ayuda a confirmar que la fila se creó
 
     if (insError) {
-        console.error("Error de RLS o Estructura:", insError);
-        alert("Error al registrar: " + insError.message);
+        console.error("ERROR DETALLADO:", insError);
+        alert("Error de registro: " + insError.message);
         registrando = false;
     } else {
-        alert("¡USUARIO CREADO EXITOSAMENTE! Recibiste 500 Pesos JyF de regalo.");
-        window.location.reload(); // Recarga limpia para entrar al catálogo
+        alert("¡USUARIO CREADO EXITOSAMENTE!");
+        window.location.reload();
     }
 }
 
