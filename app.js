@@ -1,72 +1,59 @@
 // Usamos la constante 'client' que ya viene de auth.js
 let totalPesosJyF = 0; 
-
 const IMG_PLACEHOLDER = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQx5RMPoanaRwX5s3ytHXNmVHD-QKcyR_5Aeg&s";
 
 	window.revelarCuerpo = function() {
 		document.body.style.opacity = "1";
 		const imgHomenaje = document.getElementById('img-homenaje');
 		const pantalla = document.getElementById('pantalla-carga');
-		const login = document.getElementById('seccion-login');
+
+		setTimeout(() => { if (imgHomenaje) imgHomenaje.classList.add('revelada'); }, 750);
 
 		setTimeout(() => {
-			if (imgHomenaje) imgHomenaje.classList.add('revelada');
-		}, 750);
-
-		const quitarPantallaCarga = () => {
-			setTimeout(() => {
-				if (pantalla) {
-					pantalla.style.opacity = "0";
-					setTimeout(() => {
-						pantalla.classList.add('hidden');
-						if (login) {
-							login.classList.remove('hidden');
-							login.style.opacity = '1';
-						}
-						// Iniciamos chequeo de sesión
-						chequearSesionActiva(); 
-					}, 1200);
-				}
-			}, 3000);
-		};
-
-		if (document.readyState === 'complete') {
-			quitarPantallaCarga();
-		} else {
-			window.addEventListener('load', quitarPantallaCarga);
-		}
+			if (pantalla) {
+				pantalla.style.opacity = "0";
+				setTimeout(() => {
+					pantalla.classList.add('hidden');
+					chequearSesionActiva(); 
+				}, 1200);
+			}
+		}, 3000);
 	}
 
 	async function chequearSesionActiva() {
 		const { data: { session } } = await client.auth.getSession();
+		const login = document.getElementById('seccion-login');
+		
 		if (session) {
-			// Si hay sesión, verificamos si tiene perfil creado antes de entrar
-			const { data: perfil } = await client
-				.from('perfiles')
-				.select('id')
-				.eq('id', session.user.id)
-				.maybeSingle();
+			const { data: perfil } = await client.from('perfiles').select('id, hash_dispositivo').eq('id', session.user.id).maybeSingle();
+			const localHash = localStorage.getItem('jyf_DB_key');
 
-			if (perfil) entrarAlCatalogo();
+			// Solo entra directo si ya tiene perfil y el hash coincide
+			if (perfil && perfil.hash_dispositivo === localHash) {
+				entrarAlCatalogo();
+			} else {
+				login.classList.remove('hidden'); // Necesita validar hash o registrarse
+			}
+		} else {
+			login.classList.remove('hidden');
 		}
 	}
 
 	function entrarAlCatalogo() {
-		// 1. Ocultar Login con efecto
 		const login = document.getElementById('seccion-login');
-		if (login) {
-			login.style.opacity = '0';
-			setTimeout(() => login.classList.add('hidden'), 500);
-		}
-
-		// 2. Mostrar Catálogo
 		const catalogo = document.getElementById('seccion-catalogo');
+
+		if (login) login.classList.add('hidden');
+		
 		if (catalogo) {
 			catalogo.classList.remove('hidden');
-			setTimeout(() => catalogo.style.opacity = '1', 100);
+			// Forzamos un pequeño delay para que la transición de Tailwind funcione
+			setTimeout(() => {
+				catalogo.style.opacity = "1";
+				catalogo.classList.add('opacity-100');
+			}, 50);
 		}
 		
-		// 3. Cargar datos reales
 		cargarProductos();
 		actualizarSaldoUI(); 
 	}
