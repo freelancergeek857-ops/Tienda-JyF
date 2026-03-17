@@ -28,39 +28,53 @@ async function generarHashDispositivo(email, whatsapp) {
  * Verifica si el dispositivo es conocido antes de enviar el Magic Link.
  */
 async function solicitarAccesoMágico() {
-    const email = document.getElementById('email-acceso').value.trim();
-    if (!email.endsWith('@gmail.com')) return alert("Solo Gmail");
+    const emailInput = document.getElementById('email-acceso');
+    const email = emailInput.value.trim().toLowerCase();
+    
+    if (!email.endsWith('@gmail.com')) return alert("Por favor, ingresá un Gmail válido.");
 
-    // Verificación previa de dispositivo conocido
-    const { data: perfil } = await client
+    console.log("Buscando acceso rápido para:", email);
+
+    // 1. Intentamos el acceso por Hash (aprovechando tu política 'verificar_existencia_anonimo')
+    const { data: perfil, error } = await client
         .from('perfiles')
-        .select('id, hash_dispositivo')
+        .select('id, email, hash_dispositivo, pesos_jyf')
         .eq('email', email)
         .maybeSingle();
 
-		if (perfil) {
-				const localHash = localStorage.getItem('jyf_DB_key');
-				if (localHash && localHash === perfil.hash_dispositivo) {
-					// En lugar de un alert que frena todo, mandamos directo al catálogo
-					console.log("Dispositivo reconocido. Entrando...");
-					if (typeof entrarAlCatalogo === "function") {
-						return entrarAlCatalogo(); 
-					}
-				} else {
-					alert("Dispositivo nuevo detectado. Se requiere validación por email.");
-				}
-			}
+    if (error) {
+        console.error("Error de DB:", error.message);
+    }
 
-    // Envío de Magic Link
+    const localHash = localStorage.getItem('jyf_DB_key');
+
+    // 2. Lógica de entrada directa
+    if (perfil && localHash && localHash === perfil.hash_dispositivo) {
+        console.log("✅ Dispositivo reconocido. Entrando al búnker...");
+        
+        // Seteamos el usuario manual para que app.js lo reconozca
+        window.usuarioLogueadoManual = perfil;
+        
+        // Llamamos a la función de app.js para mostrar el catálogo
+        if (typeof entrarAlCatalogo === "function") {
+            return entrarAlCatalogo();
+        }
+    }
+
+    // 3. Si no coincide el Hash, mandamos el Magic Link (Registro o Dispositivo Nuevo)
+    console.log("📩 Mandando Magic Link por seguridad...");
+    
     const { error: authError } = await client.auth.signInWithOtp({
         email,
         options: { emailRedirectTo: window.location.href }
     });
 
     if (authError) {
-        alert("Error: " + authError.message);
+        alert("Error al enviar el link: " + authError.message);
     } else {
+        alert("¡Hola! Por seguridad, enviamos un link de acceso a tu Gmail para validar este dispositivo.");
         document.getElementById('btn-acceso').classList.add('hidden');
+        emailInput.classList.add('hidden');
         document.getElementById('aviso-mail').classList.remove('hidden');
     }
 }

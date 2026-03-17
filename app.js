@@ -72,26 +72,32 @@ const IMG_PLACEHOLDER = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ
 	}
 
 	async function actualizarSaldoUI() {
-		const { data: { user } } = await client.auth.getUser();
-		if (!user) return;
+    let userID = null;
 
-		const { data: perfil, error } = await client
-			.from('perfiles')
-			.select('pesos_jyf')
-			.eq('id', user.id)
-			.maybeSingle(); // Usamos maybeSingle para evitar errores si aún no existe la fila
+    // 1. Verificamos si hay sesión oficial de Supabase
+    const { data: { session } } = await client.auth.getSession();
+    
+    if (session) {
+        userID = session.user.id;
+    } else if (window.usuarioLogueadoManual) {
+        // 2. Si no hay sesión, usamos el ID que obtuvimos por el Hash
+        userID = window.usuarioLogueadoManual.id;
+    }
 
-		if (error) {
-			console.warn("Saldo no disponible aún:", error.message);
-			return;
-		}
+    if (!userID) return;
 
-		if (perfil) {
-			totalPesosJyF = perfil.pesos_jyf || 0;
-			const elSaldo = document.getElementById('saldo');
-			if (elSaldo) elSaldo.innerText = totalPesosJyF;
-		}
-	}
+    const { data: perfil } = await client
+        .from('perfiles')
+        .select('pesos_jyf')
+        .eq('id', userID)
+        .maybeSingle();
+
+    if (perfil) {
+        totalPesosJyF = perfil.pesos_jyf || 0;
+        const elSaldo = document.getElementById('saldo');
+        if (elSaldo) elSaldo.innerText = totalPesosJyF;
+    }
+}
 
 	async function cargarProductos() {
 		const grilla = document.getElementById('grilla');
@@ -131,8 +137,17 @@ const IMG_PLACEHOLDER = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ
 	}
 
 	async function procesarCompra(nombre, precio, regalo) {
-		const { data: { user } } = await client.auth.getUser();
-		if (!user) return alert("Debes estar logueado para comprar.");
+    // CAMBIO AQUÍ: Buscar ID manual o de sesión
+    let currentUser = null;
+    const { data: { session } } = await client.auth.getSession();
+    
+    if (session) {
+        currentUser = session.user;
+    } else if (window.usuarioLogueadoManual) {
+        currentUser = window.usuarioLogueadoManual;
+    }
+
+    if (!currentUser) return alert("Debes estar logueado para comprar.");
 
 		const confirmar = confirm(`¿Confirmás la compra de ${nombre} por $${precio}?`);
 		if (!confirmar) return;
