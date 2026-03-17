@@ -67,18 +67,27 @@ async function solicitarAccesoMágico() {
     btn.innerHTML = `<span>Procesando...</span>`;
 
     try {
-        const { data: perfil } = await client.from('perfiles').select('*').eq('email', email).maybeSingle();
+        console.log("🔍 Iniciando búsqueda de perfil para:", email);
+        const { data: perfil, error: errP } = await client.from('perfiles').select('*').eq('email', email).maybeSingle();
         
+        if (errP) {
+            console.error("❌ Error de Supabase al buscar perfil:", errP);
+            throw errP;
+        }
+
+        console.log("✅ Resultado de búsqueda de perfil:", perfil);
+
         // Generamos el hash actual con las semillas que ya existen en localStorage
         const currentHash = await generarHashDispositivo();
+        console.log("🔑 Hash actual del dispositivo:", currentHash);
 
         // CASO A: El mail existe y el hash coincide (Dispositivo reconocido)
         if (perfil && perfil.hash_dispositivo === currentHash) {
-            console.log("Caso A: Dispositivo reconocido.");
+            console.log("🚀 CASO A: Dispositivo reconocido. Entrando directo...");
             return entrarAlCatalogo(perfil); 
         }
 
-        // CASO B o C: No coincide el hash o es nuevo usuario.
+        console.log("📧 CASO B/C: Requiere validación por Magic Link.");
         // Forzamos la creación de nuevas semillas para el nuevo hash que se validará tras el Magic Link.
         obtenerOcrearSemillaDispositivo(true);
 
@@ -86,23 +95,28 @@ async function solicitarAccesoMágico() {
         localStorage.setItem('jyf_auth_pending_email', email);
         localStorage.setItem('jyf_auth_nonce', nonce);
 
-        const { error } = await client.auth.signInWithOtp({
+        console.log("📨 Enviando Magic Link a Supabase...");
+        const { error: errOtp } = await client.auth.signInWithOtp({
             email,
             options: { emailRedirectTo: window.location.href }
         });
 
-        if (error) throw error;
+        if (errOtp) {
+            console.error("❌ Error al enviar OTP:", errOtp);
+            throw errOtp;
+        }
 
+        console.log("📩 Magic Link enviado con éxito.");
         document.getElementById('btn-acceso').classList.add('hidden');
         document.getElementById('email-acceso').classList.add('hidden');
         document.getElementById('aviso-mail').classList.remove('hidden');
 
     } catch (err) {
-        console.error(err);
+        console.error("💥 Error crítico en solicitarAccesoMágico:", err);
         btn.disabled = false;
         btn.style.opacity = "1";
         btn.innerHTML = originalText;
-        mostrarNotificacion("Error", "No pudimos procesar la entrada: " + err.message);
+        mostrarNotificacion("Error de Acceso", err.message || "Error desconocido en el servidor.");
     }
 }
 
