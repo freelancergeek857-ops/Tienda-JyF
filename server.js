@@ -8,7 +8,6 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = 3000;
 
-// Servir archivos estáticos desde el directorio raíz
 app.use(express.static(__dirname));
 
 app.get('*', (req, res) => {
@@ -16,5 +15,5 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Servidor de desarrollo corriendo en http://localhost:${PORT}`);
+  console.log(`Búnker JyF corriendo en puerto ${PORT}`);
 });

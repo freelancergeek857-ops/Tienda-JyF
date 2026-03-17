@@ -1,4 +1,4 @@
-/* --- BASE DE LA TIENDA --- */
+/* Estilos Base para el Búnker */
 html, body {
     background-color: #0f172a !important; 
     margin: 0;
@@ -6,16 +6,15 @@ html, body {
     width: 100%;
     height: 100%;
     overflow-x: hidden;
+    color: white;
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 body { 
-    color: white; 
-    font-family: 'Inter', sans-serif; 
     opacity: 0; 
     transition: opacity 0.5s ease-in;
 }
 
-/* --- CENTRADO TOTAL --- */
 #pantalla-carga {
     position: fixed;
     inset: 0;
@@ -24,10 +23,9 @@ body {
     justify-content: center;
     background-color: #0f172a;
     z-index: 9999;
-	transition: opacity 0.5s ease-in-out;
+    transition: opacity 0.5s ease-in-out;
 }
 
-/* --- EFECTOS DE LA IMAGEN --- */
 #img-homenaje {
     filter: grayscale(100%) blur(10px);
     transition: filter 1.5s ease-in-out;
@@ -37,33 +35,20 @@ body {
     filter: grayscale(0%) blur(0px);
 }
 
-/* --- UTILIDADES OBLIGATORIAS --- */
-.hidden { 
-    display: none !important; 
-}
-
-.seccion { 
-    transition: opacity 0.5s ease; 
-}
-
 .card { 
     background: #1e293b; 
     border: 1px solid #334155; 
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+    transition: all 0.3s ease; 
 }
 
 .card:hover { 
-    transform: translateY(-8px); 
+    transform: translateY(-5px); 
     border-color: #38bdf8; 
-    box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
 }
 
-/* --- ANIMACIONES --- */
-@keyframes fadeIn {
-    from { opacity: 0; transform: scale(0.95); }
-    to { opacity: 1; transform: scale(1); }
-}
+.hidden { display: none !important; }
 
-.animate-fade-in {
-    animation: fadeIn 0.5s ease-out forwards;
+button:disabled {
+    filter: grayscale(1);
+    transform: none !important;
 }

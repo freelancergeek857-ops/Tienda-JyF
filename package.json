@@ -1,7 +1,6 @@
 {
-  "name": "tienda-jyf-vanilla",
+  "name": "tienda-jyf-bunker",
   "version": "1.0.0",
-  "description": "Tienda JyF en Vanilla JavaScript",
   "type": "module",
   "scripts": {
     "dev": "node server.js",
