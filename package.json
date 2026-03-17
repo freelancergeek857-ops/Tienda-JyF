@@ -4,7 +4,9 @@
   "type": "module",
   "scripts": {
     "dev": "node server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "lint": "echo 'No linting needed for vanilla JS'",
+    "build": "echo 'Building static site...'"
   },
   "dependencies": {
     "express": "^4.21.2"
