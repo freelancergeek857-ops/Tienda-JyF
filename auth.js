@@ -11,12 +11,38 @@ window.accesoConcedido = false;
 let registrando = false;
 let usuarioPendiente = null;
 
+// Limpiar fragmentos de la URL (evita errores de link usado al recargar)
+if (window.location.hash || window.location.search.includes('type=magiclink')) {
+    setTimeout(() => {
+        window.history.replaceState(null, null, window.location.pathname);
+    }, 2000);
+}
+
 /**
- * Genera una huella digital única para el dispositivo
+ * Obtiene o crea las semillas (tiempo y número aleatorio) para el hash del dispositivo.
+ * Se guardan en localStorage para persistencia.
  */
-async function generarHashDispositivo(email, whatsapp, salEspecial = "fija") {
-    const hardwareInfo = [screen.width, navigator.language].join('|');
-    const semilla = `${hardwareInfo}-${email}-${whatsapp}-${salEspecial}`;
+function obtenerOcrearSemillaDispositivo(forzarNueva = false) {
+    let time = localStorage.getItem('jyf_time');
+    let rand = localStorage.getItem('jyf_rand');
+
+    if (forzarNueva || !time || !rand) {
+        time = Date.now().toString();
+        rand = Math.random().toString(36).substring(2, 15);
+        localStorage.setItem('jyf_time', time);
+        localStorage.setItem('jyf_rand', rand);
+    }
+
+    return { time, rand };
+}
+
+/**
+ * Genera una huella digital única para el dispositivo usando hardware, navegador y semillas locales.
+ */
+async function generarHashDispositivo() {
+    const hardwareInfo = [screen.width, screen.height, navigator.language, navigator.platform].join('|');
+    const { time, rand } = obtenerOcrearSemillaDispositivo();
+    const semilla = `${hardwareInfo}-${time}-${rand}`;
     const msgUint8 = new TextEncoder().encode(semilla);
     const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
@@ -42,11 +68,19 @@ async function solicitarAccesoMágico() {
 
     try {
         const { data: perfil } = await client.from('perfiles').select('*').eq('email', email).maybeSingle();
-        const localHash = localStorage.getItem('jyf_DB_key');
+        
+        // Generamos el hash actual con las semillas que ya existen en localStorage
+        const currentHash = await generarHashDispositivo();
 
-        if (perfil && perfil.hash_dispositivo === localHash) {
+        // CASO A: El mail existe y el hash coincide (Dispositivo reconocido)
+        if (perfil && perfil.hash_dispositivo === currentHash) {
+            console.log("Caso A: Dispositivo reconocido.");
             return entrarAlCatalogo(perfil); 
         }
+
+        // CASO B o C: No coincide el hash o es nuevo usuario.
+        // Forzamos la creación de nuevas semillas para el nuevo hash que se validará tras el Magic Link.
+        obtenerOcrearSemillaDispositivo(true);
 
         const nonce = Math.random().toString(36).substring(2, 15);
         localStorage.setItem('jyf_auth_pending_email', email);
@@ -78,50 +112,47 @@ async function solicitarAccesoMágico() {
 client.auth.onAuthStateChange(async (event, session) => {
     console.log("Evento Auth:", event);
     
-    // Si detectamos que viene de un link o hay sesión, bloqueamos el login preventivamente
-    if (event === 'SIGNED_IN' || (event === 'INITIAL_SESSION' && session)) {
-        window.accesoConcedido = true;
-    }
-
+    // Si es un ingreso fresco por Magic Link
     if (event === 'SIGNED_IN' && session?.user && !registrando) {
         const localNonce = localStorage.getItem('jyf_auth_nonce');
         const emailCheck = localStorage.getItem('jyf_auth_pending_email');
 
-        if (!localNonce || emailCheck !== session.user.email) {
-            if (!localNonce && emailCheck === null) {
-                const { data: perfil } = await client.from('perfiles').select('*').eq('id', session.user.id).maybeSingle();
-                if (perfil) return entrarAlCatalogo(perfil);
+        // Solo validamos el nonce si realmente estamos esperando un login por link
+        if (localNonce) {
+            if (emailCheck !== session.user.email) {
+                mostrarNotificacion("⚠️ Seguridad", "Este link no corresponde al correo solicitado.");
+                return client.auth.signOut();
             }
-            mostrarNotificacion("⚠️ Seguridad", "Este link no es válido o ya fue usado.");
-            return client.auth.signOut();
+            localStorage.removeItem('jyf_auth_nonce');
+            localStorage.removeItem('jyf_auth_pending_email');
         }
 
-        localStorage.removeItem('jyf_auth_nonce');
-        localStorage.removeItem('jyf_auth_pending_email');
-
         const { data: perfil } = await client.from('perfiles').select('*').eq('id', session.user.id).maybeSingle();
-        const localHash = localStorage.getItem('jyf_DB_key');
+        const newHash = await generarHashDispositivo();
 
         if (!perfil) {
             registrando = true;
             usuarioPendiente = session.user;
             entrarAlCatalogo({ pesos_jyf: 500, nombre_google: "Nuevo Usuario" });
             document.getElementById('modal-registro').classList.remove('hidden');
-        } else if (perfil.hash_dispositivo !== localHash) {
-            await manejarRecuperacionCuenta(perfil);
+        } else if (perfil.hash_dispositivo !== newHash) {
+            await manejarRecuperacionCuenta(perfil, newHash);
         } else {
             entrarAlCatalogo(perfil);
         }
     }
     
+    // Si ya hay una sesión pero el usuario recargó la página
+    // NO entramos automáticamente al catálogo para respetar el deseo del usuario de pedir el mail
     if (event === 'INITIAL_SESSION' && session?.user) {
-        const { data: perfil } = await client.from('perfiles').select('*').eq('id', session.user.id).maybeSingle();
-        if (perfil) entrarAlCatalogo(perfil);
+        console.log("Sesión inicial detectada. Esperando validación de mail.");
     }
 
     if (event === 'SIGNED_OUT') {
         window.accesoConcedido = false;
-        window.location.reload();
+        // No recargar automáticamente para evitar loops, solo asegurar que el login sea visible
+        document.getElementById('seccion-login').classList.remove('hidden');
+        document.getElementById('seccion-catalogo').classList.add('hidden');
     }
 });
 
@@ -133,8 +164,7 @@ async function procesarRegistroFinal() {
         return alert("Por favor, completá tu nombre y WhatsApp.");
     }
 
-    const miHash = await generarHashDispositivo(usuarioPendiente.email, wa, Math.random().toString());
-    localStorage.setItem('jyf_DB_key', miHash);
+    const miHash = await generarHashDispositivo();
     
     await client.from('perfiles').insert({ 
         id: usuarioPendiente.id, 
@@ -151,7 +181,7 @@ async function procesarRegistroFinal() {
     entrarAlCatalogo(nuevoPerfil);
 }
 
-async function manejarRecuperacionCuenta(perfil) {
+async function manejarRecuperacionCuenta(perfil, newHash) {
     let nuevoContador = (perfil.nro_recuperacion || 0) + 1;
     let nuevosPesos = perfil.pesos_jyf;
 
@@ -166,11 +196,8 @@ async function manejarRecuperacionCuenta(perfil) {
         mostrarNotificacion("Recuperación de Cuenta", `Detectamos un nuevo dispositivo. Esta es tu recuperación ${nuevoContador}/3. Te queda ${restantes} intento${restantes === 1 ? '' : 's'} antes de que tus puntos se reseteen.`);
     }
 
-    const miHash = await generarHashDispositivo(perfil.email, perfil.whatsapp, Math.random().toString());
-    localStorage.setItem('jyf_DB_key', miHash);
-    
     await client.from('perfiles').update({ 
-        hash_dispositivo: miHash, 
+        hash_dispositivo: newHash, 
         nro_recuperacion: nuevoContador, 
         pesos_jyf: nuevosPesos 
     }).eq('id', perfil.id);

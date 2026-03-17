@@ -20,39 +20,21 @@ window.revelarCuerpo = function() {
             pantalla.style.opacity = "0";
             setTimeout(() => {
                 pantalla.classList.add('hidden');
-                // Solo chequeamos si no hay un proceso de auth en curso (Magic Link)
-                if (!window.accesoConcedido) chequearSesionActiva();
+                
+                // SIEMPRE mostramos el login después de la intro para mayor seguridad (como pidió el usuario)
+                // auth.js se encargará de entrar al catálogo si el usuario valida su mail/hash
+                const login = document.getElementById('seccion-login');
+                if (login) {
+                    login.classList.remove('hidden');
+                    setTimeout(() => login.style.opacity = "1", 50);
+                }
             }, 1000);
         }
     }, 3000);
 }
 
-async function chequearSesionActiva() {
-    // Si auth.js ya concedió acceso (por Magic Link), no hacemos nada
-    if (window.accesoConcedido) return;
-
-    const { data: { session } } = await client.auth.getSession();
-    
-    if (session) {
-        const { data: p } = await client.from('perfiles').select('*').eq('id', session.user.id).maybeSingle();
-        if (p) return entrarAlCatalogo(p);
-    }
-
-    const localHash = localStorage.getItem('jyf_DB_key');
-    if (localHash) {
-        const { data: p } = await client.from('perfiles').select('*').eq('hash_dispositivo', localHash).maybeSingle();
-        if (p) return entrarAlCatalogo(p);
-    }
-
-    // Si después de chequear todo, no hay acceso concedido, mostramos login
-    if (!window.accesoConcedido) {
-        const login = document.getElementById('seccion-login');
-        if (login) {
-            login.classList.remove('hidden');
-            setTimeout(() => login.style.opacity = "1", 50);
-        }
-    }
-}
+// Eliminamos chequearSesionActiva() ya que causaba conflictos de "Locks" con auth.js
+// y el usuario prefiere que se le pida el correo siempre por seguridad.
 
 function entrarAlCatalogo(perfilExistente = null) {
     window.accesoConcedido = true;
@@ -81,7 +63,7 @@ async function actualizarSaldoUI() {
     if (session) {
         query = client.from('perfiles').select('pesos_jyf').eq('id', session.user.id);
     } else {
-        const localHash = localStorage.getItem('jyf_DB_key');
+        const localHash = await generarHashDispositivo();
         query = client.from('perfiles').select('pesos_jyf').eq('hash_dispositivo', localHash);
     }
 
@@ -106,14 +88,28 @@ async function cargarProductos() {
                 onerror="this.src='https://picsum.photos/seed/${p.id}/400/300'">
             <h2 class="text-lg font-bold mb-2 text-white">${p.nombre}</h2>
             <div class="mt-auto">
-                <span class="text-2xl font-black text-sky-400 mb-4 block">$${p.precio_venta.toLocaleString()}</span>
-                <button onclick="comprarProducto('${p.id}', ${p.precio_venta})" 
-                    class="w-full bg-white text-black py-3 rounded-xl font-bold hover:bg-sky-100 transition active:scale-95">
-                    Comprar 🛒
-                </button>
+                <span class="text-2xl font-black text-sky-400 mb-1 block">$${p.precio_venta.toLocaleString()}</span>
+                <span class="text-xs text-emerald-400 font-bold mb-4 block">✨ Ganás $${(p.pesos_jyf_regalo || 0).toLocaleString()} Pesos JyF</span>
+                
+                <div class="flex flex-col gap-2">
+                    <button onclick="comprarProducto('${p.id}', ${p.precio_venta})" 
+                        class="w-full bg-white text-black py-3 rounded-xl font-bold hover:bg-sky-100 transition active:scale-95">
+                        Comprar Directo 🛒
+                    </button>
+                    <button onclick="pedirPorWhatsApp('${p.nombre}', ${p.precio_venta})" 
+                        class="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-500 transition active:scale-95">
+                        Pedir por WhatsApp 💬
+                    </button>
+                </div>
             </div>
         </div>
     `).join('');
+}
+
+function pedirPorWhatsApp(nombre, precio) {
+    const mensaje = `¡Hola! 👋 Me interesa comprar: ${nombre} ($${precio.toLocaleString()})`;
+    const url = `https://wa.me/5491112345678?text=${encodeURIComponent(mensaje)}`; // Reemplazar con el número real si es necesario
+    window.open(url, '_blank');
 }
 
 function comprarProducto(id, precio) {
