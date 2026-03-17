@@ -6,6 +6,11 @@ const SUPABASE_URL = 'https://itkuzqbjofryhatachyz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_FYhPcYO61lzuv-Y2P9LmaQ_miOQ2cVH';
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// Cliente para identificación (sin persistencia de sesión para evitar bloqueos de Locks)
+const identClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+    auth: { persistSession: false }
+});
+
 // Variables globales para controlar el flujo de UI
 window.accesoConcedido = false;
 let registrando = false;
@@ -75,7 +80,8 @@ async function solicitarAccesoMágico() {
 
     try {
         console.log("🔍 [Caso A] Buscando perfil para:", email);
-        const { data: perfil, error: errP } = await client.from('perfiles').select('*').eq('email', email).maybeSingle();
+        // Usamos identClient para evitar bloqueos de sesión (Locks)
+        const { data: perfil, error: errP } = await identClient.from('perfiles').select('*').eq('email', email).maybeSingle();
         
         if (errP) throw errP;
 
@@ -97,7 +103,7 @@ async function solicitarAccesoMágico() {
         console.log("📨 Enviando Magic Link a Supabase...");
         const { error: errOtp } = await client.auth.signInWithOtp({
             email,
-            options: { emailRedirectTo: window.location.href }
+            options: { emailRedirectTo: https://freelancergeek857-ops.github.io/Tienda-JyF/ }
         });
 
         if (errOtp) throw errOtp;
