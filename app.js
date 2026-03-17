@@ -85,9 +85,9 @@ async function cargarProductos() {
                 <span class="text-2xl font-bold">$${p.precio_venta}</span>
             </div>
             <a href="${linkWS}" target="_blank" class="bg-green-600 text-center py-2 rounded-lg mb-2 font-bold hover:bg-green-500 transition">WhatsApp 📱</a>
-            <button onclick="simularCompra('${p.nombre}', ${p.precio_venta}, ${p.pesos_jsf_regalo})" class="bg-sky-600 py-2 rounded-lg font-bold hover:bg-sky-500 transition">Comprar Directo 🛒</button>
+            <button onclick="simularCompra('${p.nombre}', ${p.precio_venta}, ${p.pesos_jyf_regalo})" class="bg-sky-600 py-2 rounded-lg font-bold hover:bg-sky-500 transition">Comprar Directo 🛒</button>
             <div class="bg-sky-500/10 border border-sky-500/50 rounded-lg p-2 text-center mt-4">
-                <span class="text-sky-400 font-bold text-xs">🎁 +${p.pesos_jsf_regalo} Pesos JyF</span>
+                <span class="text-sky-400 font-bold text-xs">🎁 +${p.pesos_jyf_regalo} Pesos JyF</span>
             </div>
         </div>`;
     }).join('');
