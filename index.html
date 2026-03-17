@@ -3,46 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tienda JyF - (en desarrollo...)</title>
-    
-    <link rel="stylesheet" href="style.css">
-
+    <title>Tienda JyF - versión Alpha</title>
+    <link rel="stylesheet" href="./style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body onload="revelarCuerpo()">
 
+    <!-- Pantalla de Carga / Intro -->
     <div id="pantalla-carga">
-        <img id="img-homenaje" 
-             src="img/Tienda_JyF.intro.webp" 
-             class="w-[80%] md:w-[40%] h-auto rounded-[15px] overflow-hidden"
-             alt="Homenaje Tienda JyF">
+        <img id="img-homenaje" src="https://picsum.photos/seed/shop/800/600" class="w-[80%] md:w-[40%] h-auto rounded-[15px] overflow-hidden" alt="Homenaje Tienda JyF">
     </div>
-
-    <div id="seccion-login" class="hidden min-h-screen flex flex-col items-center justify-center p-6 text-center seccion">
+	
+	<!-- Sección Login -->
+	<div id="seccion-login" class="hidden min-h-screen flex flex-col items-center justify-center p-6 text-center seccion">
         <div class="mb-8">
-            <h2 class="text-5xl font-bold text-white mb-2">Bienvenido</h2>
-            <p class="text-xl text-slate-400">Tu puerta de acceso a los Pesos JyF</p>
+            <h2 class="text-5xl font-bold text-white mb-2 tracking-tight">Tienda JyF</h2>
+            <p class="text-xl text-slate-400 font-light">Búnker Personal • Alpha</p>
         </div>
         
-        <button onclick="simularIngreso(event)" class="flex items-center gap-4 bg-white text-black px-10 py-4 rounded-full font-bold hover:bg-sky-100 transition-all shadow-xl hover:scale-105">
-            <img src="https://www.google.com/favicon.ico" class="w-6" alt="G">
-            Ingresar con Google
-        </button>
-        <p class="mt-6 text-slate-600 text-sm">🔒 Conexión segura y encriptada</p>
+        <div class="flex flex-col gap-4 w-full max-w-sm">
+            <input type="email" id="email-acceso" placeholder="tu-cuenta@gmail.com" 
+                   class="px-4 py-4 rounded-xl bg-slate-800 text-white border-2 border-slate-700 focus:border-sky-500 outline-none transition-all text-lg text-center shadow-inner">
+            
+            <button onclick="solicitarAccesoMágico()" id="btn-acceso" 
+                    class="group bg-white text-black px-6 py-4 rounded-full font-bold hover:bg-sky-100 transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3">
+                <svg class="w-6 h-6" viewBox="0 0 48 48">
+                    <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path>
+                    <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path>
+                    <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path>
+                    <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571l6.19,5.238C40.486,35.33,44,30.078,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path>
+                </svg>
+                <span>Ingresar con Google</span>
+            </button>
+            
+            <div id="aviso-mail" class="hidden mt-4 p-4 bg-sky-900/30 border border-sky-500 rounded-lg text-sky-200 text-sm">
+                📧 ¡Enviado! Buscá el mail en tu bandeja de entrada.
+                <br><br>
+                <a href="https://mail.google.com" target="_blank" class="underline font-bold text-white text-lg">Abrir Gmail ↗</a>
+            </div>
+        </div>
+
+        <p class="mt-8 text-slate-600 text-sm">🔒 Acceso único por dispositivo</p>
     </div>
 
-    <div id="seccion-catalogo" class="hidden p-8 seccion">
+    <!-- Sección Catálogo -->
+    <div id="seccion-catalogo" class="hidden opacity-0 transition-opacity duration-500 p-8 seccion">
         <div class="fixed top-4 right-4 bg-sky-600 px-4 py-2 rounded-full font-bold shadow-2xl z-50 border border-sky-400">
             💰 Pesos JyF: <span id="saldo">0</span>
         </div>
         <header class="text-center mb-12">
             <h1 class="text-4xl font-bold text-sky-400">Tienda JyF</h1>
-            <p class="text-slate-400">Comprá lo que te encanta 🤩 • Ganá Pesos JyF 💸 • Llevatelo todo 🎁</p>
+            <p class="text-slate-400">Comprá lo que te encanta 🤩 • Ganá Pesos JyF 💸</p>
         </header>
         <div id="grilla" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"></div>
     </div>
 
-    <script src="app.js"></script>
+    <!-- Modal Personalizado (Reemplazo de alert/confirm) -->
+    <div id="custom-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[10000] flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 p-8 rounded-2xl max-w-md w-full shadow-2xl">
+            <h3 id="modal-title" class="text-2xl font-bold text-white mb-4"></h3>
+            <p id="modal-text" class="text-slate-300 mb-8"></p>
+            <div id="modal-actions" class="flex gap-4 justify-end">
+                <button id="modal-cancel" class="px-6 py-2 rounded-full font-bold text-slate-400 hover:text-white transition">Cancelar</button>
+                <button id="modal-confirm" class="px-6 py-2 rounded-full font-bold bg-sky-600 text-white hover:bg-sky-500 transition">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="./auth.js"></script>
+    <script src="./app.js"></script>
 </body>
 </html>
