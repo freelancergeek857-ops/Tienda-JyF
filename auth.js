@@ -6,10 +6,11 @@ const SUPABASE_URL = 'https://itkuzqbjofryhatachyz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_FYhPcYO61lzuv-Y2P9LmaQ_miOQ2cVH';
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Variable global para controlar el flujo de UI
+// Variables globales para controlar el flujo de UI
 window.accesoConcedido = false;
 let registrando = false;
 let usuarioPendiente = null;
+let loginEnProgreso = false;
 
 // Limpiar fragmentos de la URL (evita errores de link usado al recargar)
 if (window.location.hash || window.location.search.includes('type=magiclink')) {
@@ -53,6 +54,11 @@ async function generarHashDispositivo() {
  * Lógica principal de acceso
  */
 async function solicitarAccesoMágico() {
+    if (loginEnProgreso) {
+        console.log("⏳ Ya hay un proceso de login en curso, ignorando clic.");
+        return;
+    }
+
     const btn = document.getElementById('btn-acceso');
     const emailInput = document.getElementById('email-acceso');
     const email = emailInput.value.trim().toLowerCase();
@@ -65,19 +71,14 @@ async function solicitarAccesoMágico() {
     btn.style.opacity = "0.5";
     const originalText = btn.innerHTML;
     btn.innerHTML = `<span>Procesando...</span>`;
+    loginEnProgreso = true;
 
     try {
-        console.log("🔍 Iniciando búsqueda de perfil para:", email);
+        console.log("🔍 [Caso A] Buscando perfil para:", email);
         const { data: perfil, error: errP } = await client.from('perfiles').select('*').eq('email', email).maybeSingle();
         
-        if (errP) {
-            console.error("❌ Error de Supabase al buscar perfil:", errP);
-            throw errP;
-        }
+        if (errP) throw errP;
 
-        console.log("✅ Resultado de búsqueda de perfil:", perfil);
-
-        // Generamos el hash actual con las semillas que ya existen en localStorage
         const currentHash = await generarHashDispositivo();
         console.log("🔑 Hash actual del dispositivo:", currentHash);
 
@@ -88,12 +89,10 @@ async function solicitarAccesoMágico() {
         }
 
         console.log("📧 CASO B/C: Requiere validación por Magic Link.");
-        // Forzamos la creación de nuevas semillas para el nuevo hash que se validará tras el Magic Link.
         obtenerOcrearSemillaDispositivo(true);
 
-        const nonce = Math.random().toString(36).substring(2, 15);
         localStorage.setItem('jyf_auth_pending_email', email);
-        localStorage.setItem('jyf_auth_nonce', nonce);
+        localStorage.setItem('jyf_auth_nonce', Math.random().toString(36).substring(2, 15));
 
         console.log("📨 Enviando Magic Link a Supabase...");
         const { error: errOtp } = await client.auth.signInWithOtp({
@@ -101,10 +100,7 @@ async function solicitarAccesoMágico() {
             options: { emailRedirectTo: window.location.href }
         });
 
-        if (errOtp) {
-            console.error("❌ Error al enviar OTP:", errOtp);
-            throw errOtp;
-        }
+        if (errOtp) throw errOtp;
 
         console.log("📩 Magic Link enviado con éxito.");
         document.getElementById('btn-acceso').classList.add('hidden');
@@ -112,11 +108,13 @@ async function solicitarAccesoMágico() {
         document.getElementById('aviso-mail').classList.remove('hidden');
 
     } catch (err) {
-        console.error("💥 Error crítico en solicitarAccesoMágico:", err);
+        console.error("💥 Error en solicitarAccesoMágico:", err);
         btn.disabled = false;
         btn.style.opacity = "1";
         btn.innerHTML = originalText;
-        mostrarNotificacion("Error de Acceso", err.message || "Error desconocido en el servidor.");
+        mostrarNotificacion("Error de Acceso", err.message || "Error desconocido.");
+    } finally {
+        loginEnProgreso = false;
     }
 }
 
@@ -124,47 +122,47 @@ async function solicitarAccesoMágico() {
  * Listener de Auth de Supabase
  */
 client.auth.onAuthStateChange(async (event, session) => {
-    console.log("Evento Auth:", event);
+    console.log("🔔 Evento Auth:", event);
     
-    // Si es un ingreso fresco por Magic Link
-    if (event === 'SIGNED_IN' && session?.user && !registrando) {
-        const localNonce = localStorage.getItem('jyf_auth_nonce');
-        const emailCheck = localStorage.getItem('jyf_auth_pending_email');
+    if (event === 'SIGNED_IN' && session?.user && !registrando && !loginEnProgreso) {
+        loginEnProgreso = true;
+        try {
+            const localNonce = localStorage.getItem('jyf_auth_nonce');
+            const emailCheck = localStorage.getItem('jyf_auth_pending_email');
 
-        // Solo validamos el nonce si realmente estamos esperando un login por link
-        if (localNonce) {
-            if (emailCheck !== session.user.email) {
-                mostrarNotificacion("⚠️ Seguridad", "Este link no corresponde al correo solicitado.");
-                return client.auth.signOut();
+            if (localNonce) {
+                if (emailCheck && emailCheck !== session.user.email) {
+                    mostrarNotificacion("⚠️ Seguridad", "Este link no corresponde al correo solicitado.");
+                    return client.auth.signOut();
+                }
+                localStorage.removeItem('jyf_auth_nonce');
+                localStorage.removeItem('jyf_auth_pending_email');
             }
-            localStorage.removeItem('jyf_auth_nonce');
-            localStorage.removeItem('jyf_auth_pending_email');
-        }
 
-        const { data: perfil } = await client.from('perfiles').select('*').eq('id', session.user.id).maybeSingle();
-        const newHash = await generarHashDispositivo();
+            const { data: perfil, error } = await client.from('perfiles').select('*').eq('id', session.user.id).maybeSingle();
+            const newHash = await generarHashDispositivo();
 
-        if (!perfil) {
-            registrando = true;
-            usuarioPendiente = session.user;
-            entrarAlCatalogo({ pesos_jyf: 500, nombre_google: "Nuevo Usuario" });
-            document.getElementById('modal-registro').classList.remove('hidden');
-        } else if (perfil.hash_dispositivo !== newHash) {
-            await manejarRecuperacionCuenta(perfil, newHash);
-        } else {
-            entrarAlCatalogo(perfil);
+            if (error) throw error;
+
+            if (!perfil) {
+                registrando = true;
+                usuarioPendiente = session.user;
+                entrarAlCatalogo({ pesos_jyf: 500, nombre_google: "Nuevo Usuario" });
+                document.getElementById('modal-registro').classList.remove('hidden');
+            } else if (perfil.hash_dispositivo !== newHash) {
+                await manejarRecuperacionCuenta(perfil, newHash);
+            } else {
+                entrarAlCatalogo(perfil);
+            }
+        } catch (err) {
+            console.error("💥 Error en onAuthStateChange:", err);
+        } finally {
+            loginEnProgreso = false;
         }
     }
     
-    // Si ya hay una sesión pero el usuario recargó la página
-    // NO entramos automáticamente al catálogo para respetar el deseo del usuario de pedir el mail
-    if (event === 'INITIAL_SESSION' && session?.user) {
-        console.log("Sesión inicial detectada. Esperando validación de mail.");
-    }
-
     if (event === 'SIGNED_OUT') {
         window.accesoConcedido = false;
-        // No recargar automáticamente para evitar loops, solo asegurar que el login sea visible
         document.getElementById('seccion-login').classList.remove('hidden');
         document.getElementById('seccion-catalogo').classList.add('hidden');
     }
