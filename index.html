@@ -4,16 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tienda JyF - versión Alpha</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="./style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body onload="revelarCuerpo()">
 
+    <!-- Pantalla de Carga / Intro -->
     <div id="pantalla-carga">
-        <img id="img-homenaje" src="img/Tienda_JyF.intro.webp" class="w-[80%] md:w-[40%] h-auto rounded-[15px] overflow-hidden" alt="Homenaje Tienda JyF">
+        <img id="img-homenaje" src="https://picsum.photos/seed/shop/800/600" class="w-[80%] md:w-[40%] h-auto rounded-[15px] overflow-hidden" alt="Homenaje Tienda JyF">
     </div>
 	
+	<!-- Sección Login -->
 	<div id="seccion-login" class="hidden min-h-screen flex flex-col items-center justify-center p-6 text-center seccion">
         <div class="mb-8">
             <h2 class="text-5xl font-bold text-white mb-2 tracking-tight">Tienda JyF</h2>
@@ -45,6 +47,7 @@
         <p class="mt-8 text-slate-600 text-sm">🔒 Acceso único por dispositivo</p>
     </div>
 
+    <!-- Sección Catálogo -->
     <div id="seccion-catalogo" class="hidden opacity-0 transition-opacity duration-500 p-8 seccion">
         <div class="fixed top-4 right-4 bg-sky-600 px-4 py-2 rounded-full font-bold shadow-2xl z-50 border border-sky-400">
             💰 Pesos JyF: <span id="saldo">0</span>
@@ -56,7 +59,19 @@
         <div id="grilla" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"></div>
     </div>
 
-    <script src="auth.js"></script>
-    <script src="app.js"></script>
+    <!-- Modal Personalizado (Reemplazo de alert/confirm) -->
+    <div id="custom-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[10000] flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 p-8 rounded-2xl max-w-md w-full shadow-2xl">
+            <h3 id="modal-title" class="text-2xl font-bold text-white mb-4"></h3>
+            <p id="modal-text" class="text-slate-300 mb-8"></p>
+            <div id="modal-actions" class="flex gap-4 justify-end">
+                <button id="modal-cancel" class="px-6 py-2 rounded-full font-bold text-slate-400 hover:text-white transition">Cancelar</button>
+                <button id="modal-confirm" class="px-6 py-2 rounded-full font-bold bg-sky-600 text-white hover:bg-sky-500 transition">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="./auth.js"></script>
+    <script src="./app.js"></script>
 </body>
 </html>
