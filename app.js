@@ -72,30 +72,18 @@ const IMG_PLACEHOLDER = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ
 	}
 
 	async function actualizarSaldoUI() {
-    let userID = null;
-
-    // 1. Verificamos si hay sesión oficial de Supabase
     const { data: { session } } = await client.auth.getSession();
-    
-    if (session) {
-        userID = session.user.id;
-    } else if (window.usuarioLogueadoManual) {
-        // 2. Si no hay sesión, usamos el ID que obtuvimos por el Hash
-        userID = window.usuarioLogueadoManual.id;
-    }
-
-    if (!userID) return;
+    if (!session) return;
 
     const { data: perfil } = await client
         .from('perfiles')
         .select('pesos_jyf')
-        .eq('id', userID)
+        .eq('id', session.user.id)
         .maybeSingle();
 
     if (perfil) {
         totalPesosJyF = perfil.pesos_jyf || 0;
-        const elSaldo = document.getElementById('saldo');
-        if (elSaldo) elSaldo.innerText = totalPesosJyF;
+        document.getElementById('saldo').innerText = totalPesosJyF;
     }
 }
 
@@ -137,63 +125,43 @@ const IMG_PLACEHOLDER = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ
 	}
 
 	async function procesarCompra(nombre, precio, regalo) {
-    // CAMBIO AQUÍ: Buscar ID manual o de sesión
-    let currentUser = null;
     const { data: { session } } = await client.auth.getSession();
-    
-    if (session) {
-        currentUser = session.user;
-    } else if (window.usuarioLogueadoManual) {
-        currentUser = window.usuarioLogueadoManual;
+    if (!session) return alert("Sesión expirada.");
+    const user = session.user;
+
+    const confirmar = confirm(`¿Confirmás la compra de ${nombre} por $${precio}?`);
+    if (!confirmar) return;
+
+    let nuevoSaldo = totalPesosJyF;
+    let montoMovimiento = 0;
+    let motivo = "";
+
+    let usoPuntos = totalPesosJyF > 0 ? confirm(`¿Usar tus ${totalPesosJyF} Pesos JyF?`) : false;
+
+    if (usoPuntos) {
+        if (totalPesosJyF >= precio) {
+            montoMovimiento = -precio;
+            nuevoSaldo -= precio;
+            motivo = `Compra: ${nombre}`;
+        } else {
+            montoMovimiento = -totalPesosJyF;
+            nuevoSaldo = 0;
+            motivo = `Pago parcial: ${nombre}`;
+        }
+    } else {
+        montoMovimiento = regalo;
+        nuevoSaldo += regalo;
+        motivo = `Regalo: ${nombre}`;
     }
 
-    if (!currentUser) return alert("Debes estar logueado para comprar.");
+    // ACTUALIZACIÓN CORREGIDA USANDO user.id
+    const { error: err1 } = await client.from('perfiles').update({ pesos_jyf: nuevoSaldo }).eq('id', user.id);
+    const { error: err2 } = await client.from('historial_pesos').insert([{ perfil_id: user.id, monto: montoMovimiento, motivo }]);
 
-		const confirmar = confirm(`¿Confirmás la compra de ${nombre} por $${precio}?`);
-		if (!confirmar) return;
-
-		let nuevoSaldo = totalPesosJyF;
-		let montoMovimiento = 0;
-		let motivo = "";
-
-		let usoPuntos = false;
-		if (totalPesosJyF > 0) {
-			usoPuntos = confirm(`Tenés ${totalPesosJyF} Pesos JyF. ¿Querés usarlos?`);
-		}
-
-		if (usoPuntos) {
-			if (totalPesosJyF >= precio) {
-				montoMovimiento = -precio;
-				nuevoSaldo -= precio;
-				motivo = `Compra total: ${nombre}`;
-			} else {
-				montoMovimiento = -totalPesosJyF;
-				const resto = precio - totalPesosJyF;
-				nuevoSaldo = 0;
-				motivo = `Pago parcial: ${nombre}. Restante: $${resto}`;
-			}
-		} else {
-			montoMovimiento = regalo;
-			nuevoSaldo += regalo;
-			motivo = `Regalo por compra: ${nombre}`;
-		}
-
-		// Actualización en DB
-		const { error: errPerfil } = await client
-			.from('perfiles')
-			.update({ pesos_jyf: nuevoSaldo })
-			.eq('id', user.id);
-
-		const { error: errHistorial } = await client
-			.from('historial_pesos')
-			.insert([{ perfil_id: user.id, monto: montoMovimiento, motivo: motivo }]);
-
-		if (errPerfil || errHistorial) {
-			alert("Error al sincronizar. Por favor, reintentá.");
-		} else {
-			totalPesosJyF = nuevoSaldo;
-			const elSaldo = document.getElementById('saldo');
-			if (elSaldo) elSaldo.innerText = totalPesosJyF;
-			alert(usoPuntos ? "Puntos aplicados correctamente." : `¡Sumaste ${regalo} Pesos JyF!`);
-		}
-	}
+    if (err1 || err2) alert("Error al sincronizar.");
+    else {
+        totalPesosJyF = nuevoSaldo;
+        document.getElementById('saldo').innerText = totalPesosJyF;
+        alert("¡Operación exitosa!");
+    }
+}
