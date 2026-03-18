@@ -5,14 +5,12 @@
 const SUPABASE_URL = 'https://itkuzqbjofryhatachyz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_FYhPcYO61lzuv-Y2P9LmaQ_miOQ2cVH';
 
-// Cliente principal con bloqueos desactivados para evitar errores en GitHub Pages
+// Cliente principal con bloqueos desactivados
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
     auth: {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
-        flowType: 'implicit',
-        // Desactivamos el sistema de locks que causa el error "Lock broken"
         storageKey: 'jyf-auth-token',
         storage: window.localStorage,
         lock: {
@@ -22,16 +20,23 @@ const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
     }
 });
 
-// Cliente para identificación (sin persistencia de sesión)
-const identClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-    auth: { 
-        persistSession: false,
-        lock: {
-            acquire: () => Promise.resolve({ release: () => {} }),
-            release: () => {}
+/**
+ * Función auxiliar para buscar perfil sin usar el SDK de Auth (evita bloqueos)
+ */
+async function buscarPerfilPorEmail(email) {
+    const url = `${SUPABASE_URL}/rest/v1/perfiles?email=eq.${encodeURIComponent(email)}&select=*`;
+    const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json'
         }
-    }
-});
+    });
+    if (!response.ok) throw new Error("Error al consultar perfil");
+    const data = await response.json();
+    return data[0] || null;
+}
 
 // Variables globales para controlar el flujo de UI
 window.accesoConcedido = false;
@@ -124,13 +129,12 @@ async function solicitarAccesoMágico() {
 
     try {
         console.log("🔍 [Caso A] Buscando perfil para:", email);
-        const { data: perfil, error: errP } = await identClient.from('perfiles').select('*').eq('email', email).maybeSingle();
+        // Consulta directa vía Fetch (inmune a bloqueos de Supabase)
+        const perfil = await buscarPerfilPorEmail(email);
         
-        if (errP) throw errP;
-
         const currentHash = await generarHashDispositivo();
         
-        // CASO A: Reconocido por Hash
+        // CASO A: Reconocido por Hash - ENTRADA DIRECTA MANUAL
         if (perfil && perfil.hash_dispositivo === currentHash) {
             console.log("🚀 CASO A: Reconocido. Entrando...");
             return entrarAlCatalogo(perfil); 
@@ -171,20 +175,25 @@ async function solicitarAccesoMágico() {
 client.auth.onAuthStateChange(async (event, session) => {
     console.log("🔔 Evento Auth:", event);
     
-    // Solo procesamos SIGNED_IN si NO estamos registrando y hay una sesión válida
+    // Solo procesamos SIGNED_IN si hay un nonce (viene de un Magic Link)
+    // Esto evita que el autologin al recargar interfiera con el flujo manual
     if (event === 'SIGNED_IN' && session?.user && !registrando) {
-        try {
-            const localNonce = localStorage.getItem('jyf_auth_nonce');
-            const emailCheck = localStorage.getItem('jyf_auth_pending_email');
+        const localNonce = localStorage.getItem('jyf_auth_nonce');
+        
+        if (!localNonce) {
+            console.log("ℹ️ Sesión restaurada detectada. Ignorando para flujo manual.");
+            return;
+        }
 
-            if (localNonce) {
-                if (emailCheck && emailCheck !== session.user.email) {
-                    mostrarNotificacion("⚠️ Seguridad", "Este link no corresponde al correo solicitado.");
-                    return client.auth.signOut();
-                }
-                localStorage.removeItem('jyf_auth_nonce');
-                localStorage.removeItem('jyf_auth_pending_email');
+        try {
+            const emailCheck = localStorage.getItem('jyf_auth_pending_email');
+            if (emailCheck && emailCheck !== session.user.email) {
+                mostrarNotificacion("⚠️ Seguridad", "Este link no corresponde al correo solicitado.");
+                return client.auth.signOut();
             }
+
+            localStorage.removeItem('jyf_auth_nonce');
+            localStorage.removeItem('jyf_auth_pending_email');
 
             const { data: perfil, error } = await client.from('perfiles').select('*').eq('id', session.user.id).maybeSingle();
             const newHash = await generarHashDispositivo();
