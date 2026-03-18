@@ -107,6 +107,28 @@ async function generarHashDispositivo() {
 }
 
 /**
+ * Lógica de Autocompletado y Bloqueo - Tienda JyF v0.1.5
+ */
+function validarYBloquear(el) {
+    const aviso = document.getElementById('aviso-autocompletar');
+    
+    // Si el texto entró de golpe (Autocompletado) y es un Gmail válido
+    if (el.value.includes('@gmail.com') && el.value.length > 5) {
+        el.readOnly = true; // Bloqueamos el teclado
+        el.classList.replace('border-slate-700', 'border-emerald-500');
+        el.classList.add('bg-slate-900', 'text-emerald-400');
+        if(aviso) aviso.classList.remove('hidden');
+        
+        console.log("✅ Mail capturado via autocompletado:", el.value);
+    } 
+    // Si intenta escribir manual y no es el formato correcto, lo mantenemos limpio
+    else if (el.value.length > 0 && !el.value.includes('@')) {
+        // Opcional: podrías dejar que escriba, pero esto fuerza a usar el autocompletado del celu
+        // el.value = ''; 
+    }
+}
+
+/**
  * Abre Gmail de forma inteligente: App en Android, Web en PC.
  */
 function abrirGmailInteligente() {

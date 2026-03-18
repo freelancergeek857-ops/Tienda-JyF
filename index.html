@@ -24,9 +24,14 @@
         </div>
         
         <div class="flex flex-col gap-4 w-full max-w-sm">
-            <input type="email" id="email-acceso" placeholder="tu-cuenta@gmail.com" 
-                   class="px-4 py-4 rounded-xl bg-slate-800 text-white border-2 border-slate-700 focus:border-sky-500 outline-none transition-all text-lg text-center shadow-inner">
-            
+			<input type="email" id="email-acceso" placeholder="tu-cuenta@gmail.com" 
+					   autocomplete="email"
+					   oninput="validarYBloquear(this)"
+					   class="px-4 py-4 rounded-xl bg-slate-800 text-white border-2 border-slate-700 focus:border-sky-500 outline-none transition-all text-lg text-center shadow-inner">
+				
+				<div id="aviso-autocompletar" class="hidden text-[10px] text-sky-400 font-bold animate-pulse">
+					¡Excelente! Cuenta vinculada 🛡️
+				</div>           
             <button onclick="solicitarAccesoMágico()" id="btn-acceso" 
 			id="btn-acceso-definitivo"
 			class="group relative bg-slate-950 text-white px-10 py-6 rounded-2xl font-black 
@@ -51,11 +56,11 @@
             
             <div id="aviso-mail" class="hidden mt-8 p-6 bg-slate-900/90 border border-sky-500/30 rounded-3xl text-center shadow-2xl animate-fade-in backdrop-blur-sm">
 				<p class="text-sky-100 text-lg mb-6 font-semibold tracking-tight">
-					📧 ¡Enviado! Revisá tu Gmail para entrar.
+					📧 ¡Enviado! Revisá tu correo para entrar.
 				</p>
 
 				<p class="text-[10px] text-sky-400 uppercase tracking-[0.2em] mb-4 font-black opacity-70">
-					Abrir mi correo
+					ENTRÁ POR GMAIL 
 				</p>
 
 				<div class="flex justify-center">
@@ -72,7 +77,7 @@
 					</button>
 				</div>
 				
-				<p class="mt-4 text-xs text-slate-500 font-medium">Click para ir a la App</p>
+				<p class="mt-4 text-xs text-slate-500 font-medium"> ☝ Abrí la App 👆</p>
 			</div>
         </div>
     </div>
