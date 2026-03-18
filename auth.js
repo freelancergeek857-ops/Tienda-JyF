@@ -5,37 +5,38 @@
 const SUPABASE_URL = 'https://itkuzqbjofryhatachyz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_FYhPcYO61lzuv-Y2P9LmaQ_miOQ2cVH';
 
-// Cliente principal con bloqueos desactivados
+// Cliente principal de Supabase (Configuración estándar y estable)
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
     auth: {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
         storageKey: 'jyf-auth-token',
-        storage: window.localStorage,
-        lock: {
-            acquire: () => Promise.resolve({ release: () => {} }),
-            release: () => {}
-        }
+        storage: window.localStorage
     }
 });
 
 /**
- * Función auxiliar para buscar perfil sin usar el SDK de Auth (evita bloqueos)
+ * Función auxiliar para buscar perfil sin usar el SDK de Auth (evita bloqueos y conflictos)
  */
 async function buscarPerfilPorEmail(email) {
-    const url = `${SUPABASE_URL}/rest/v1/perfiles?email=eq.${encodeURIComponent(email)}&select=*`;
-    const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-            'apikey': SUPABASE_KEY,
-            'Authorization': `Bearer ${SUPABASE_KEY}`,
-            'Content-Type': 'application/json'
-        }
-    });
-    if (!response.ok) throw new Error("Error al consultar perfil");
-    const data = await response.json();
-    return data[0] || null;
+    try {
+        const url = `${SUPABASE_URL}/rest/v1/perfiles?email=eq.${encodeURIComponent(email)}&select=*`;
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'apikey': SUPABASE_KEY,
+                'Authorization': `Bearer ${SUPABASE_KEY}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        if (!response.ok) return null;
+        const data = await response.json();
+        return data[0] || null;
+    } catch (e) {
+        console.error("❌ Error en fetch de perfil:", e);
+        return null;
+    }
 }
 
 // Variables globales para controlar el flujo de UI
@@ -128,19 +129,20 @@ async function solicitarAccesoMágico() {
     loginEnProgreso = true;
 
     try {
-        console.log("🔍 [Caso A] Buscando perfil para:", email);
-        // Consulta directa vía Fetch (inmune a bloqueos de Supabase)
+        console.log("🔍 [Caso A] Verificando Mail y Hash...");
         const perfil = await buscarPerfilPorEmail(email);
-        
         const currentHash = await generarHashDispositivo();
         
-        // CASO A: Reconocido por Hash - ENTRADA DIRECTA MANUAL
+        // CASO A: Usuario registrado + Hash correcto = ACCESO DIRECTO
         if (perfil && perfil.hash_dispositivo === currentHash) {
-            console.log("🚀 CASO A: Reconocido. Entrando...");
+            console.log("🚀 CASO A: Coincidencia total. Entrando...");
             return entrarAlCatalogo(perfil); 
         }
 
-        console.log("📧 CASO B/C: Enviando Magic Link...");
+        // Si llegamos acá, es CASO B (Hash distinto) o CASO C (No registrado)
+        console.log("📧 CASO B/C: Se requiere validación por Magic Link.");
+        
+        // Generamos nuevas semillas para el nuevo dispositivo/sesión
         obtenerOcrearSemillaDispositivo(true);
 
         localStorage.setItem('jyf_auth_pending_email', email);
@@ -151,7 +153,12 @@ async function solicitarAccesoMágico() {
             options: { emailRedirectTo: 'https://freelancergeek857-ops.github.io/Tienda-JyF/' }
         });
 
-        if (errOtp) throw errOtp;
+        if (errOtp) {
+            if (errOtp.status === 429) {
+                throw new Error("Por seguridad, debés esperar un momento antes de pedir otro link (aprox. 60 seg).");
+            }
+            throw errOtp;
+        }
 
         console.log("📩 Magic Link enviado.");
         document.getElementById('btn-acceso').classList.add('hidden');
