@@ -4,11 +4,33 @@
 
 const SUPABASE_URL = 'https://itkuzqbjofryhatachyz.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_FYhPcYO61lzuv-Y2P9LmaQ_miOQ2cVH';
-const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Cliente para identificación (sin persistencia de sesión para evitar bloqueos de Locks)
+// Cliente principal con bloqueos desactivados para evitar errores en GitHub Pages
+const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+    auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        flowType: 'implicit',
+        // Desactivamos el sistema de locks que causa el error "Lock broken"
+        storageKey: 'jyf-auth-token',
+        storage: window.localStorage,
+        lock: {
+            acquire: () => Promise.resolve({ release: () => {} }),
+            release: () => {}
+        }
+    }
+});
+
+// Cliente para identificación (sin persistencia de sesión)
 const identClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-    auth: { persistSession: false }
+    auth: { 
+        persistSession: false,
+        lock: {
+            acquire: () => Promise.resolve({ release: () => {} }),
+            release: () => {}
+        }
+    }
 });
 
 // Variables globales para controlar el flujo de UI
@@ -16,6 +38,29 @@ window.accesoConcedido = false;
 let registrando = false;
 let usuarioPendiente = null;
 let loginEnProgreso = false;
+let sistemaListo = false;
+
+// Bloqueo inicial de seguridad para estabilizar Supabase
+setTimeout(() => {
+    sistemaListo = true;
+    const btn = document.getElementById('btn-acceso');
+    if (btn) {
+        btn.disabled = false;
+        btn.style.opacity = "1";
+        console.log("✅ Sistema listo para ingreso manual.");
+    }
+}, 1500);
+
+// Función de seguridad para resetear el estado si algo se cuelga
+function resetearEstadoLogin() {
+    loginEnProgreso = false;
+    const btn = document.getElementById('btn-acceso');
+    if (btn) {
+        btn.disabled = false;
+        btn.style.opacity = "1";
+        btn.innerHTML = `<span>Ingresar</span>`;
+    }
+}
 
 // Limpiar fragmentos de la URL (evita errores de link usado al recargar)
 if (window.location.hash || window.location.search.includes('type=magiclink')) {
@@ -56,13 +101,11 @@ async function generarHashDispositivo() {
 }
 
 /**
- * Lógica principal de acceso
+ * Lógica principal de acceso - 100% Manual
  */
 async function solicitarAccesoMágico() {
-    if (loginEnProgreso) {
-        console.log("⏳ Ya hay un proceso de login en curso, ignorando clic.");
-        return;
-    }
+    if (!sistemaListo) return console.log("⏳ Esperando estabilización inicial...");
+    if (loginEnProgreso) return console.log("⏳ Ya hay un proceso en curso...");
 
     const btn = document.getElementById('btn-acceso');
     const emailInput = document.getElementById('email-acceso');
@@ -72,6 +115,7 @@ async function solicitarAccesoMágico() {
         return mostrarNotificacion("Error", "Por favor, ingresá un correo de Gmail válido.");
     }
 
+    // Bloqueo manual al hacer clic
     btn.disabled = true;
     btn.style.opacity = "0.5";
     const originalText = btn.innerHTML;
@@ -80,45 +124,42 @@ async function solicitarAccesoMágico() {
 
     try {
         console.log("🔍 [Caso A] Buscando perfil para:", email);
-        // Usamos identClient para evitar bloqueos de sesión (Locks)
         const { data: perfil, error: errP } = await identClient.from('perfiles').select('*').eq('email', email).maybeSingle();
         
         if (errP) throw errP;
 
         const currentHash = await generarHashDispositivo();
-        console.log("🔑 Hash actual del dispositivo:", currentHash);
-
-        // CASO A: El mail existe y el hash coincide (Dispositivo reconocido)
+        
+        // CASO A: Reconocido por Hash
         if (perfil && perfil.hash_dispositivo === currentHash) {
-            console.log("🚀 CASO A: Dispositivo reconocido. Entrando directo...");
+            console.log("🚀 CASO A: Reconocido. Entrando...");
             return entrarAlCatalogo(perfil); 
         }
 
-        console.log("📧 CASO B/C: Requiere validación por Magic Link.");
+        console.log("📧 CASO B/C: Enviando Magic Link...");
         obtenerOcrearSemillaDispositivo(true);
 
         localStorage.setItem('jyf_auth_pending_email', email);
         localStorage.setItem('jyf_auth_nonce', Math.random().toString(36).substring(2, 15));
 
-        console.log("📨 Enviando Magic Link a Supabase...");
         const { error: errOtp } = await client.auth.signInWithOtp({
             email,
-            options: { emailRedirectTo: https://freelancergeek857-ops.github.io/Tienda-JyF/ }
+            options: { emailRedirectTo: 'https://freelancergeek857-ops.github.io/Tienda-JyF/' }
         });
 
         if (errOtp) throw errOtp;
 
-        console.log("📩 Magic Link enviado con éxito.");
+        console.log("📩 Magic Link enviado.");
         document.getElementById('btn-acceso').classList.add('hidden');
         document.getElementById('email-acceso').classList.add('hidden');
         document.getElementById('aviso-mail').classList.remove('hidden');
 
     } catch (err) {
         console.error("💥 Error en solicitarAccesoMágico:", err);
+        mostrarNotificacion("Error", err.message || "Error desconocido.");
         btn.disabled = false;
         btn.style.opacity = "1";
         btn.innerHTML = originalText;
-        mostrarNotificacion("Error de Acceso", err.message || "Error desconocido.");
     } finally {
         loginEnProgreso = false;
     }
@@ -130,8 +171,8 @@ async function solicitarAccesoMágico() {
 client.auth.onAuthStateChange(async (event, session) => {
     console.log("🔔 Evento Auth:", event);
     
-    if (event === 'SIGNED_IN' && session?.user && !registrando && !loginEnProgreso) {
-        loginEnProgreso = true;
+    // Solo procesamos SIGNED_IN si NO estamos registrando y hay una sesión válida
+    if (event === 'SIGNED_IN' && session?.user && !registrando) {
         try {
             const localNonce = localStorage.getItem('jyf_auth_nonce');
             const emailCheck = localStorage.getItem('jyf_auth_pending_email');
@@ -162,8 +203,6 @@ client.auth.onAuthStateChange(async (event, session) => {
             }
         } catch (err) {
             console.error("💥 Error en onAuthStateChange:", err);
-        } finally {
-            loginEnProgreso = false;
         }
     }
     
