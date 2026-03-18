@@ -107,28 +107,6 @@ async function generarHashDispositivo() {
 }
 
 /**
- * Lógica de Autocompletado y Bloqueo - Tienda JyF v0.1.5
- */
-function validarYBloquear(el) {
-    const aviso = document.getElementById('aviso-autocompletar');
-    
-    // Si el texto entró de golpe (Autocompletado) y es un Gmail válido
-    if (el.value.includes('@gmail.com') && el.value.length > 5) {
-        el.readOnly = true; // Bloqueamos el teclado
-        el.classList.replace('border-slate-700', 'border-emerald-500');
-        el.classList.add('bg-slate-900', 'text-emerald-400');
-        if(aviso) aviso.classList.remove('hidden');
-        
-        console.log("✅ Mail capturado via autocompletado:", el.value);
-    } 
-    // Si intenta escribir manual y no es el formato correcto, lo mantenemos limpio
-    else if (el.value.length > 0 && !el.value.includes('@')) {
-        // Opcional: podrías dejar que escriba, pero esto fuerza a usar el autocompletado del celu
-        // el.value = ''; 
-    }
-}
-
-/**
  * Abre Gmail de forma inteligente: App en Android, Web en PC.
  */
 function abrirGmailInteligente() {
@@ -328,3 +306,37 @@ function mostrarNotificacion(titulo, mensaje) {
     document.getElementById('modal-confirm').onclick = () => modal.classList.add('hidden');
     modal.classList.remove('hidden');
 }
+
+// Al final de auth.js
+document.addEventListener('DOMContentLoaded', () => {
+    const inputEmail = document.getElementById('email-acceso');
+    const aviso = document.getElementById('aviso-autocompletar');
+    
+    if (inputEmail) {
+        // Escuchamos el evento 'input' (funciona en Android y Windows)
+        inputEmail.addEventListener('input', (e) => {
+            const el = e.target;
+            
+            // Si el texto tiene formato de Gmail (Autocompletado)
+            if (el.value.includes('@gmail.com') && el.value.length > 5) {
+                el.readOnly = true; // Bloquea el teclado
+                
+                // Cambios visuales premium
+                el.classList.remove('border-slate-700', 'focus:border-sky-500');
+                el.classList.add('border-emerald-500', 'bg-slate-900', 'text-emerald-400');
+                
+                if(aviso) aviso.classList.remove('hidden');
+                
+                console.log("✅ Mail capturado con éxito:", el.value);
+            }
+        });
+
+        // TIP EXTRA: Algunos navegadores en PC requieren el evento 'change'
+        inputEmail.addEventListener('change', (e) => {
+             if (e.target.value.includes('@gmail.com')) {
+                 e.target.readOnly = true;
+                 e.target.classList.add('border-emerald-500');
+             }
+        });
+    }
+});

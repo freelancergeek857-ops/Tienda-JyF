@@ -24,14 +24,14 @@
         </div>
         
         <div class="flex flex-col gap-4 w-full max-w-sm">
-			<input type="email" id="email-acceso" placeholder="tu-cuenta@gmail.com" 
-					   autocomplete="email"
-					   oninput="validarYBloquear(this)"
-					   class="px-4 py-4 rounded-xl bg-slate-800 text-white border-2 border-slate-700 focus:border-sky-500 outline-none transition-all text-lg text-center shadow-inner">
-				
-				<div id="aviso-autocompletar" class="hidden text-[10px] text-sky-400 font-bold animate-pulse">
-					¡Excelente! Cuenta vinculada 🛡️
-				</div>           
+			<input type="email" id="email-acceso" 
+				   placeholder="tu-cuenta@gmail.com" 
+				   autocomplete="email"
+				   class="px-4 py-4 rounded-xl bg-slate-800 text-white border-2 border-slate-700 focus:border-sky-500 outline-none transition-all text-lg text-center shadow-inner">
+
+			<div id="aviso-autocompletar" class="hidden text-[10px] text-emerald-400 font-bold mt-2 animate-pulse text-center">
+				¡Excelente! Cuenta vinculada 🛡️
+			</div>    
             <button onclick="solicitarAccesoMágico()" id="btn-acceso" 
 			id="btn-acceso-definitivo"
 			class="group relative bg-slate-950 text-white px-10 py-6 rounded-2xl font-black 
