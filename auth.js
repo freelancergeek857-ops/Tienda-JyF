@@ -113,15 +113,10 @@ function abrirGmailInteligente() {
     const isAndroid = /Android/i.test(navigator.userAgent);
     
     if (isAndroid) {
-        // Intento abrir la App de Gmail
-        window.location.href = "intent://#Intent;scheme=googlegmail;package=com.google.android.gm;end";
-        
-        // Si en 1 segundo no se cerró la pestaña (porque no abrió la app), vamos a la web
-        setTimeout(() => {
-            window.location.href = "https://mail.google.com";
-        }, 1000);
+        // Intenta abrir la APP de Gmail directamente (Intent de Android)
+        window.location.href = "intent://#Intent;package=com.google.android.gm;scheme=https;end";
     } else {
-        // En PC, abrimos en la misma pestaña para no acumular basura
+        // En PC abre la web normal en la misma pestaña
         window.location.href = "https://mail.google.com";
     }
 }
@@ -203,7 +198,6 @@ client.auth.onAuthStateChange(async (event, session) => {
     console.log("🔔 Evento Auth:", event);
     
     // Solo procesamos SIGNED_IN si hay un nonce (viene de un Magic Link)
-    // Esto evita que el autologin al recargar interfiera con el flujo manual
     if (event === 'SIGNED_IN' && session?.user && !registrando) {
         const localNonce = localStorage.getItem('jyf_auth_nonce');
         
@@ -312,35 +306,42 @@ document.addEventListener('DOMContentLoaded', () => {
     const aviso = document.getElementById('aviso-autocompletar');
     
     if (inputEmail) {
-        // 1. BLOQUEO DE TECLADO: No deja escribir letras una por una
+        // 1. BLOQUEO DE TECLADO (BLINDADO TOTAL)
         inputEmail.addEventListener('keydown', (e) => {
-            // Permitimos Tab, Enter, Backspace para que no sea un bloque total molesto
-            const teclasPermitidas = ['Tab', 'Enter', 'Backspace', 'ArrowLeft', 'ArrowRight'];
+            const teclasPermitidas = ['Tab', 'Enter'];
             if (!teclasPermitidas.includes(e.key)) {
-                // Si intenta escribir cualquier letra, cancelamos el evento
-                // EXCEPTO si el input ya tiene el mail validado
-                if (!inputEmail.value.includes('@gmail.com')) {
-                    e.preventDefault();
-                }
+                e.preventDefault();
             }
         });
 
-        // 2. DETECTOR DE AUTOCOMPLETADO
-        inputEmail.addEventListener('input', (e) => {
+        // 2. BLOQUEO DE PEGADO (PASTE)
+        inputEmail.addEventListener('paste', (e) => {
+            e.preventDefault();
+            console.log("🚫 Pegado bloqueado. Usá el autocompletado de Google.");
+        });
+
+        // 3. DETECTOR DE AUTOCOMPLETADO
+        const manejarCambio = (e) => {
             const el = e.target;
+            const valor = el.value.trim().toLowerCase();
             
-            if (el.value.includes('@gmail.com') && el.value.length > 5) {
+            if (valor.includes('@gmail.com') && valor.length > 5) {
                 el.readOnly = true; 
                 el.classList.remove('border-slate-700', 'focus:border-sky-500');
-                el.classList.add('border-emerald-500', 'bg-slate-900', 'text-emerald-400');
-                if(aviso) aviso.classList.remove('hidden');
-                console.log("✅ Mail capturado:", el.value);
-            } else {
-                // Si lo que entró no es un gmail (tipeo manual o basura), lo limpiamos
-                if (!el.value.includes('@')) {
-                    el.value = '';
+                el.classList.add('border-emerald-500', 'bg-slate-900', 'text-emerald-400', 'ring-2', 'ring-emerald-500/50');
+                
+                if(aviso) {
+                    aviso.classList.remove('hidden');
+                    aviso.classList.add('animate-bounce');
                 }
+                
+                console.log("✅ Autocompletado detectado:", valor);
+            } else {
+                if (valor !== '') el.value = '';
             }
-        });
+        };
+
+        inputEmail.addEventListener('input', manejarCambio);
+        inputEmail.addEventListener('change', manejarCambio);
     }
 });
