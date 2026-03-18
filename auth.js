@@ -113,19 +113,22 @@ function abrirGmailInteligente() {
     const isAndroid = /Android/i.test(navigator.userAgent);
     
     if (isAndroid) {
-        // Intent ultra-directo para abrir la APP de Gmail
-        // Usamos el esquema googlegmail que es interpretado directamente por la app
-        const intentGmail = "intent://#Intent;package=com.google.android.gm;scheme=googlegmail;end";
+        // Intent para abrir la APP de Gmail directamente
+        // Usamos la acción MAIN y categoría LAUNCHER que es la forma más estándar de lanzar una app por su paquete
+        const intentGmail = "intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=com.google.android.gm;end";
+        
+        // Intentamos disparar el intent
         window.location.href = intentGmail;
         
-        // Fallback de seguridad: si en 1.5s seguimos aquí, abrimos la web
+        // Fallback de seguridad: si en 2 segundos el navegador sigue aquí (no se minimizó),
+        // es que el intent falló o no tiene la app, entonces abrimos la web.
         setTimeout(() => {
             if (!document.hidden) {
                 window.location.href = "https://mail.google.com";
             }
-        }, 1500);
+        }, 2000);
     } else {
-        // En PC abre la web normal en la misma pestaña
+        // En PC o iOS (donde googlegmail:// suele funcionar pero mail.google.com es más seguro)
         window.location.href = "https://mail.google.com";
     }
 }
