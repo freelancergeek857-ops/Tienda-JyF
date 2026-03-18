@@ -39,6 +39,10 @@ window.revelarCuerpo = function() {
 function entrarAlCatalogo(perfilExistente = null) {
     window.accesoConcedido = true;
     
+    // Limpiamos la URL para que no queden tokens de Magic Link a la vista
+    // y para que el botón "atrás" no vuelva al login
+    window.history.replaceState(null, null, window.location.pathname);
+
     document.getElementById('seccion-login').classList.add('hidden');
     const cat = document.getElementById('seccion-catalogo');
     cat.classList.remove('hidden');

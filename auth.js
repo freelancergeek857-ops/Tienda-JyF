@@ -107,6 +107,26 @@ async function generarHashDispositivo() {
 }
 
 /**
+ * Abre Gmail de forma inteligente: App en Android, Web en PC.
+ */
+function abrirGmailInteligente() {
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    
+    if (isAndroid) {
+        // Intento abrir la App de Gmail
+        window.location.href = "intent://#Intent;scheme=googlegmail;package=com.google.android.gm;end";
+        
+        // Si en 1 segundo no se cerró la pestaña (porque no abrió la app), vamos a la web
+        setTimeout(() => {
+            window.location.href = "https://mail.google.com";
+        }, 1000);
+    } else {
+        // En PC, abrimos en la misma pestaña para no acumular basura
+        window.location.href = "https://mail.google.com";
+    }
+}
+
+/**
  * Lógica principal de acceso - 100% Manual
  */
 async function solicitarAccesoMágico() {

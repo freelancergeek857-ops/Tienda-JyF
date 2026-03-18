@@ -72,3 +72,34 @@ button:disabled {
 ::-webkit-scrollbar-thumb:hover {
     background: #475569;
 }
+
+/* --- ANIMACIONES PREMIUM TIENDA JYF (V1.0) --- */
+
+/* 1. El Rayo que atraviesa: Cruza rápido y espera (ciclo 3s) */
+@keyframes rayoSecuencial {
+    0% { transform: translateX(-150%) skewX(-12deg); }
+    20% { transform: translateX(250%) skewX(-12deg); } /* Viaje rápido */
+    100% { transform: translateX(250%) skewX(-12deg); } /* Espera larga */
+}
+
+/* 2. El Contorno: Pulsa al mismo tiempo que pasa el rayo (ciclo 3s) */
+@keyframes pulsoMetálico {
+    0%, 100% {
+        box-shadow: 0 0 15px rgba(56, 189, 248, 0.1);
+        border-color: #0c4a6e; /* sky-900 (Metálico oscuro) */
+    }
+    20%, 40% {
+        box-shadow: 0 0 35px rgba(56, 189, 248, 0.5); /* Brillo potente */
+        border-color: #38bdf8; /* sky-400 */
+    }
+}
+
+/* CLASES DE APLICACIÓN DE ANIMACIÓN (Enlazadas al HTML) */
+
+.animate-rayo-3s {
+    animation: rayoSecuencial 3s ease-in-out infinite;
+}
+
+.animate-pulso-3s {
+    animation: pulsoMetálico 3s ease-in-out infinite;
+}
