@@ -28,17 +28,26 @@
                    class="px-4 py-4 rounded-xl bg-slate-800 text-white border-2 border-slate-700 focus:border-sky-500 outline-none transition-all text-lg text-center shadow-inner">
             
             <button onclick="solicitarAccesoMágico()" id="btn-acceso" 
-                    class="group bg-white text-slate-800 px-6 py-4 rounded-2xl font-bold hover:bg-slate-50 transition-all shadow-lg active:scale-95 flex items-center justify-center gap-4 border border-slate-200">
-                <div class="w-7 h-7 flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-full h-full">
-                        <path fill="#4285F4" d="M5.42 6.16v11.68c0 .58.47 1.06 1.06 1.06h2.12V6.16H5.42z"/>
-                        <path fill="#34A853" d="M15.4 6.16v12.74h2.12c.58 0 1.06-.47 1.06-1.06V6.16h-3.18z"/>
-                        <path fill="#EA4335" d="M18.58 3.5h-3.18L12 7.08 8.6 3.5H5.42c-1.17 0-2.12.95-2.12 2.12v1.06L12 14.5l8.7-7.82V5.62c0-1.17-.95-2.12-2.12-2.12z"/>
-                        <path fill="#FBBC04" d="M18.58 3.5V6.16h3.18c0-1.17-.95-2.12-2.12-2.12z"/>
-                    </svg>
-                </div>
-                <span class="text-lg">Ingresar con Gmail</span>
-            </button>
+			id="btn-acceso-definitivo"
+			class="group relative bg-slate-950 text-white px-10 py-6 rounded-2xl font-black 
+				   tracking-tight text-2xl flex items-center justify-center gap-5
+				   border-2 border-sky-900 overflow-hidden transition-all duration-300
+				   active:scale-95 animate-pulso-3s">
+			
+			<div class="absolute inset-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/30 to-transparent 
+						-skew-x-12 animate-rayo-3s pointer-events-none z-10"></div>
+
+			<div class="bg-white p-3 rounded-full shadow-lg relative z-20 scale-110">
+				<svg class="w-7 h-7" viewBox="0 0 48 48">
+					<path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path>
+					<path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path>
+					<path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path>
+					<path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571l6.19,5.238C40.486,35.33,44,30.078,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path>
+				</svg>
+			</div>
+
+			<span class="tracking-wider text-xl font-extrabold relative z-20">Ingresá con Google</span>
+		</button>
             
             <div id="aviso-mail" class="hidden mt-8 p-6 bg-slate-900/90 border border-sky-500/30 rounded-3xl text-center shadow-2xl animate-fade-in backdrop-blur-sm">
 				<p class="text-sky-100 text-lg mb-6 font-semibold tracking-tight">
@@ -75,7 +84,7 @@
         </div>
         <header class="text-center mb-12">
             <h1 class="text-4xl font-bold text-sky-400">Tienda JyF</h1>
-            <p class="text-slate-400">Comprá lo que te encanta 🤩 • Ganá Pesos JyF 💸 • Llevatelo todo 🎁</p>
+            <p class="text-slate-400">Comprátelo ya 🤩 • Ganá Pesos JyF 💸 • Llevátelo todo 🎁</p>
         </header>
         <div id="grilla" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"></div>
     </div>
