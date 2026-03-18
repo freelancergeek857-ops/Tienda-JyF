@@ -312,34 +312,35 @@ document.addEventListener('DOMContentLoaded', () => {
     const aviso = document.getElementById('aviso-autocompletar');
     
     if (inputEmail) {
+        // 1. BLOQUEO DE TECLADO: No deja escribir letras una por una
+        inputEmail.addEventListener('keydown', (e) => {
+            // Permitimos Tab, Enter, Backspace para que no sea un bloque total molesto
+            const teclasPermitidas = ['Tab', 'Enter', 'Backspace', 'ArrowLeft', 'ArrowRight'];
+            if (!teclasPermitidas.includes(e.key)) {
+                // Si intenta escribir cualquier letra, cancelamos el evento
+                // EXCEPTO si el input ya tiene el mail validado
+                if (!inputEmail.value.includes('@gmail.com')) {
+                    e.preventDefault();
+                }
+            }
+        });
+
+        // 2. DETECTOR DE AUTOCOMPLETADO
         inputEmail.addEventListener('input', (e) => {
             const el = e.target;
             
-            // 1. CASO ÉXITO: Si detecta @gmail.com (Autocompletado o pegado)
             if (el.value.includes('@gmail.com') && el.value.length > 5) {
                 el.readOnly = true; 
                 el.classList.remove('border-slate-700', 'focus:border-sky-500');
                 el.classList.add('border-emerald-500', 'bg-slate-900', 'text-emerald-400');
                 if(aviso) aviso.classList.remove('hidden');
-                console.log("✅ Mail validado:", el.value);
-            } 
-            
-            // 2. CASO RECHAZO: Si el usuario intenta escribir manualmente
-            // Si el texto tiene algo pero NO tiene un '@' todavía, lo borramos al instante
-            // Esto "rompe" el tipeo manual y obliga a usar el autocompletado
-            else if (el.value.length > 0 && !el.value.includes('@')) {
-                el.value = ''; 
+                console.log("✅ Mail capturado:", el.value);
+            } else {
+                // Si lo que entró no es un gmail (tipeo manual o basura), lo limpiamos
+                if (!el.value.includes('@')) {
+                    el.value = '';
+                }
             }
-        });
-
-        // Refuerzo para Windows: si el autocompletado no dispara 'input', dispara 'change'
-        inputEmail.addEventListener('change', (e) => {
-             if (e.target.value.includes('@gmail.com')) {
-                 e.target.readOnly = true;
-                 e.target.classList.add('border-emerald-500');
-             } else {
-                 e.target.value = ''; // Limpia si no es Gmail
-             }
         });
     }
 });
