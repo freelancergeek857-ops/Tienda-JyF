@@ -23,7 +23,14 @@ window.revelarCuerpo = function() {
                 
                 // Solo mostramos el login si NO se ha concedido acceso ya
                 const accesoPersistido = sessionStorage.getItem('jyf_acceso_concedido') === 'true';
-                if (!window.accesoConcedido && !accesoPersistido) {
+                
+                // Detectamos si venimos de un Magic Link (Supabase pone tokens en el hash)
+                const esFlujoMagicLink = window.location.hash.includes('access_token') || 
+                                         window.location.hash.includes('type=recovery') ||
+                                         window.location.hash.includes('type=signup') ||
+                                         window.location.hash.includes('type=invite');
+
+                if (!window.accesoConcedido && !accesoPersistido && !esFlujoMagicLink) {
                     const login = document.getElementById('seccion-login');
                     if (login) {
                         login.classList.remove('hidden');
