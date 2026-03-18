@@ -206,24 +206,28 @@ async function solicitarAccesoMágico() {
 client.auth.onAuthStateChange(async (event, session) => {
     console.log("🔔 Evento Auth:", event);
     
-    // Solo procesamos SIGNED_IN si hay un nonce (viene de un Magic Link)
+    // Solo procesamos SIGNED_IN si hay un nonce (viene de un Magic Link) 
+    // O si ya tenemos acceso concedido en esta sesión (persistencia)
     if (event === 'SIGNED_IN' && session?.user && !registrando) {
         const localNonce = localStorage.getItem('jyf_auth_nonce');
+        const accesoPersistido = sessionStorage.getItem('jyf_acceso_concedido') === 'true';
         
-        if (!localNonce) {
+        if (!localNonce && !accesoPersistido) {
             console.log("ℹ️ Sesión restaurada detectada. Ignorando para flujo manual.");
             return;
         }
 
         try {
-            const emailCheck = localStorage.getItem('jyf_auth_pending_email');
-            if (emailCheck && emailCheck !== session.user.email) {
-                mostrarNotificacion("⚠️ Seguridad", "Este link no corresponde al correo solicitado.");
-                return client.auth.signOut();
+            // Si es por Magic Link (hay nonce), validamos el mail
+            if (localNonce) {
+                const emailCheck = localStorage.getItem('jyf_auth_pending_email');
+                if (emailCheck && emailCheck !== session.user.email) {
+                    mostrarNotificacion("⚠️ Seguridad", "Este link no corresponde al correo solicitado.");
+                    return client.auth.signOut();
+                }
+                localStorage.removeItem('jyf_auth_nonce');
+                localStorage.removeItem('jyf_auth_pending_email');
             }
-
-            localStorage.removeItem('jyf_auth_nonce');
-            localStorage.removeItem('jyf_auth_pending_email');
 
             const { data: perfil, error } = await client.from('perfiles').select('*').eq('id', session.user.id).maybeSingle();
             const newHash = await generarHashDispositivo();
@@ -247,6 +251,7 @@ client.auth.onAuthStateChange(async (event, session) => {
     
     if (event === 'SIGNED_OUT') {
         window.accesoConcedido = false;
+        sessionStorage.removeItem('jyf_acceso_concedido');
         document.getElementById('seccion-login').classList.remove('hidden');
         document.getElementById('seccion-catalogo').classList.add('hidden');
     }

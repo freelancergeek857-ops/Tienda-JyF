@@ -21,12 +21,14 @@ window.revelarCuerpo = function() {
             setTimeout(() => {
                 pantalla.classList.add('hidden');
                 
-                // SIEMPRE mostramos el login después de la intro para mayor seguridad (como pidió el usuario)
-                // auth.js se encargará de entrar al catálogo si el usuario valida su mail/hash
-                const login = document.getElementById('seccion-login');
-                if (login) {
-                    login.classList.remove('hidden');
-                    setTimeout(() => login.style.opacity = "1", 50);
+                // Solo mostramos el login si NO se ha concedido acceso ya
+                const accesoPersistido = sessionStorage.getItem('jyf_acceso_concedido') === 'true';
+                if (!window.accesoConcedido && !accesoPersistido) {
+                    const login = document.getElementById('seccion-login');
+                    if (login) {
+                        login.classList.remove('hidden');
+                        setTimeout(() => login.style.opacity = "1", 50);
+                    }
                 }
             }, 1000);
         }
@@ -36,8 +38,12 @@ window.revelarCuerpo = function() {
 // Eliminamos chequearSesionActiva() ya que causaba conflictos de "Locks" con auth.js
 // y el usuario prefiere que se le pida el correo siempre por seguridad.
 
+// Persistencia de acceso en la sesión actual (evita re-logins al recargar o tras Magic Link)
+window.accesoConcedido = sessionStorage.getItem('jyf_acceso_concedido') === 'true';
+
 function entrarAlCatalogo(perfilExistente = null) {
     window.accesoConcedido = true;
+    sessionStorage.setItem('jyf_acceso_concedido', 'true');
     
     // Limpiamos la URL para que no queden tokens de Magic Link a la vista
     // y para que el botón "atrás" no vuelva al login
