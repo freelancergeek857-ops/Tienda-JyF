@@ -30,13 +30,16 @@ window.revelarCuerpo = function() {
                                          window.location.hash.includes('type=signup') ||
                                          window.location.hash.includes('type=invite');
 
-                if (!window.accesoConcedido && !accesoPersistido && !esFlujoMagicLink) {
+                if (!window.accesoConcedido && !esFlujoMagicLink) {
+                    // Siempre mostramos el login al iniciar (Caso A, B o C)
+                    // El usuario debe poner su correo para verificar el Hash
                     const login = document.getElementById('seccion-login');
                     if (login) {
                         login.classList.remove('hidden');
                         setTimeout(() => login.style.opacity = "1", 50);
                     }
                 }
+                // Si es flujo Magic Link, no hacemos nada, auth.js se encarga
             }, 1000);
         }
     }, 3000);
@@ -45,12 +48,17 @@ window.revelarCuerpo = function() {
 // Eliminamos chequearSesionActiva() ya que causaba conflictos de "Locks" con auth.js
 // y el usuario prefiere que se le pida el correo siempre por seguridad.
 
-// Persistencia de acceso en la sesión actual (evita re-logins al recargar o tras Magic Link)
-window.accesoConcedido = sessionStorage.getItem('jyf_acceso_concedido') === 'true';
+// El acceso concedido NO se persiste al recargar la página para forzar el login manual (Caso A)
+window.accesoConcedido = false;
+
+let catalogoCargado = false;
 
 function entrarAlCatalogo(perfilExistente = null) {
+    if (catalogoCargado && !perfilExistente) return; // Evitar doble carga si ya está listo
+    
     window.accesoConcedido = true;
     sessionStorage.setItem('jyf_acceso_concedido', 'true');
+    catalogoCargado = true;
     
     // Limpiamos la URL para que no queden tokens de Magic Link a la vista
     // y para que el botón "atrás" no vuelva al login

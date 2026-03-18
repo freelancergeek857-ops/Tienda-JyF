@@ -209,13 +209,11 @@ async function solicitarAccesoMágico() {
 client.auth.onAuthStateChange(async (event, session) => {
     console.log("🔔 Evento Auth:", event);
     
-    // Solo procesamos SIGNED_IN si hay un nonce (viene de un Magic Link) 
-    // O si ya tenemos acceso concedido en esta sesión (persistencia)
+    // Solo procesamos SIGNED_IN si hay un nonce (viene de un Magic Link)
     if (event === 'SIGNED_IN' && session?.user && !registrando) {
         const localNonce = localStorage.getItem('jyf_auth_nonce');
-        const accesoPersistido = sessionStorage.getItem('jyf_acceso_concedido') === 'true';
         
-        if (!localNonce && !accesoPersistido) {
+        if (!localNonce) {
             console.log("ℹ️ Sesión restaurada detectada. Ignorando para flujo manual.");
             return;
         }
