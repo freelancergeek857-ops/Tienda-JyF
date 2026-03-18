@@ -307,35 +307,38 @@ function mostrarNotificacion(titulo, mensaje) {
     modal.classList.remove('hidden');
 }
 
-// Al final de auth.js
 document.addEventListener('DOMContentLoaded', () => {
     const inputEmail = document.getElementById('email-acceso');
     const aviso = document.getElementById('aviso-autocompletar');
     
     if (inputEmail) {
-        // Escuchamos el evento 'input' (funciona en Android y Windows)
         inputEmail.addEventListener('input', (e) => {
             const el = e.target;
             
-            // Si el texto tiene formato de Gmail (Autocompletado)
+            // 1. CASO ÉXITO: Si detecta @gmail.com (Autocompletado o pegado)
             if (el.value.includes('@gmail.com') && el.value.length > 5) {
-                el.readOnly = true; // Bloquea el teclado
-                
-                // Cambios visuales premium
+                el.readOnly = true; 
                 el.classList.remove('border-slate-700', 'focus:border-sky-500');
                 el.classList.add('border-emerald-500', 'bg-slate-900', 'text-emerald-400');
-                
                 if(aviso) aviso.classList.remove('hidden');
-                
-                console.log("✅ Mail capturado con éxito:", el.value);
+                console.log("✅ Mail validado:", el.value);
+            } 
+            
+            // 2. CASO RECHAZO: Si el usuario intenta escribir manualmente
+            // Si el texto tiene algo pero NO tiene un '@' todavía, lo borramos al instante
+            // Esto "rompe" el tipeo manual y obliga a usar el autocompletado
+            else if (el.value.length > 0 && !el.value.includes('@')) {
+                el.value = ''; 
             }
         });
 
-        // TIP EXTRA: Algunos navegadores en PC requieren el evento 'change'
+        // Refuerzo para Windows: si el autocompletado no dispara 'input', dispara 'change'
         inputEmail.addEventListener('change', (e) => {
              if (e.target.value.includes('@gmail.com')) {
                  e.target.readOnly = true;
                  e.target.classList.add('border-emerald-500');
+             } else {
+                 e.target.value = ''; // Limpia si no es Gmail
              }
         });
     }
