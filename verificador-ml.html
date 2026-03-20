@@ -2,102 +2,76 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verificador Pro - Tienda JyF</title>
+    <title>Verificador Tienda JyF - Fix</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #eceff1; padding: 20px; display: flex; justify-content: center; }
+        body { font-family: sans-serif; background: #eceff1; padding: 20px; display: flex; justify-content: center; }
         .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 450px; }
-        h2 { color: #333; margin-top: 0; font-size: 1.4em; border-bottom: 2px solid #3483fa; padding-bottom: 10px; }
-        p { color: #666; font-size: 0.9em; }
-        input { width: 100%; padding: 12px; margin: 15px 0; border: 2px solid #ddd; border-radius: 6px; box-sizing: border-box; outline: none; transition: border-color 0.3s; }
-        input:focus { border-color: #3483fa; }
-        button { width: 100%; padding: 12px; background: #3483fa; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 1em; }
-        button:hover { background: #2968c8; }
-        #resultado { margin-top: 25px; display: none; background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #eee; }
-        .status-on { color: #2e7d32; font-weight: bold; background: #e8f5e9; padding: 2px 6px; border-radius: 4px; }
-        .status-off { color: #c62828; font-weight: bold; background: #ffeea; padding: 2px 6px; border-radius: 4px; }
-        .info-row { margin: 10px 0; font-size: 0.95em; color: #444; }
-        img { max-width: 120px; display: block; margin: 0 auto 15px auto; border-radius: 4px; border: 1px solid #ddd; }
-        .price { font-size: 1.2em; color: #333; font-weight: bold; }
+        input { width: 100%; padding: 12px; margin: 15px 0; border: 2px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: #3483fa; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        #resultado { margin-top: 25px; display: none; background: #f9f9f9; padding: 15px; border-radius: 8px; }
+        .error-msg { color: #c62828; font-size: 0.8em; margin-top: 5px; display: none; }
     </style>
 </head>
 <body>
 
 <div class="card">
     <h2>Verificador Tienda JyF</h2>
-    <p>Pega el link de MercadoLibre (común o de catálogo):</p>
-    <input type="text" id="urlInput" placeholder="Pega el enlace aquí...">
+    <p>Si da error de conexión, intenta de nuevo o verifica el link.</p>
+    <input type="text" id="urlInput" placeholder="Pega el link de ML aquí...">
     <button onclick="consultarML()">Analizar Publicación</button>
+    <p id="errorLog" class="error-msg"></p>
 
     <div id="resultado">
-        <img id="prodImg" src="" alt="Producto">
-        <div class="info-row"><strong>ID Detectado:</strong> <span id="prodId" style="color:#3483fa"></span></div>
-        <div class="info-row"><strong>Nombre:</strong> <span id="prodTitulo"></span></div>
-        <div class="info-row"><strong>Estado:</strong> <span id="prodEstado"></span></div>
-        <div class="info-row"><strong>Precio:</strong> <span class="price">$<span id="prodPrecio"></span></span></div>
-        <div class="info-row"><strong>Stock:</strong> <span id="prodStock"></span> unidades</div>
+        <img id="prodImg" src="" alt="Producto" style="max-width: 100px; display: block; margin: 0 auto 10px;">
+        <div id="prodTitulo" style="font-weight: bold; margin-bottom: 10px;"></div>
+        <div>Precio: $<span id="prodPrecio"></span></div>
+        <div>Estado: <span id="prodEstado"></span></div>
     </div>
 </div>
 
 <script>
 async function consultarML() {
     const input = document.getElementById('urlInput').value.trim();
+    const log = document.getElementById('errorLog');
     const resDiv = document.getElementById('resultado');
     
-    if (!input) {
-        alert("Por favor, pega un enlace primero.");
-        return;
-    }
+    log.style.display = 'none';
+    resDiv.style.display = 'none';
 
-    // LÓGICA DE EXTRACCIÓN MEJORADA:
-    // 1. Intenta buscar "MLA-" seguido de números.
-    // 2. Si no, busca "MLA" seguido de números (sin el guión).
-    // 3. Si no, busca después de "wid=MLA".
     const regex = /(?:MLA-?|wid=MLA)(\d+)/i;
     const match = input.match(regex);
     
     if (!match) {
-        alert("No se reconoció un ID de MercadoLibre Argentina en este link. Asegúrate que sea de Argentina (MLA).");
+        alert("Link no reconocido.");
         return;
     }
 
-    const itemId = `MLA${match[1]}`;
-    console.log("ID extraído con éxito:", itemId);
+    const itemId = `MLA${match[1] || match[2]}`;
 
     try {
-        // Consultamos la API oficial
+        // Intentamos la petición directa
         const response = await fetch(`https://api.mercadolibre.com/items/${itemId}`);
         
-        if (response.status === 404) {
-            alert("La API de MercadoLibre no encuentra ese ID. Puede que la publicación sea muy antigua.");
-            return;
-        }
+        if (!response.ok) throw new Error("Error en respuesta de API");
 
         const data = await response.json();
 
-        // Llenamos la tarjeta de resultados
         resDiv.style.display = 'block';
-        document.getElementById('prodId').innerText = itemId;
         document.getElementById('prodTitulo').innerText = data.title;
         document.getElementById('prodPrecio').innerText = data.price.toLocaleString('es-AR');
-        document.getElementById('prodStock').innerText = data.available_quantity;
-        document.getElementById('prodImg').src = data.thumbnail.replace("-I.jpg", "-O.jpg"); // Mejor calidad de imagen
-
-        const estadoSpan = document.getElementById('prodEstado');
-        if (data.status === 'active') {
-            estadoSpan.innerText = "ONLINE (Activo)";
-            estadoSpan.className = "status-on";
-        } else {
-            estadoSpan.innerText = "PAUSADO / FINALIZADO";
-            estadoSpan.className = "status-off";
-        }
+        document.getElementById('prodImg').src = data.thumbnail;
+        document.getElementById('prodEstado').innerText = data.status === 'active' ? 'ACTIVO' : 'INACTIVO';
 
     } catch (error) {
-        console.error("Error de red:", error);
-        alert("Hubo un problema al conectar con MercadoLibre. Revisa tu internet.");
+        console.error(error);
+        log.innerText = "Error de conexión. Esto pasa si el navegador bloquea la petición (CORS) o el ID es de catálogo complejo.";
+        log.style.display = 'block';
+        
+        // TRUCO FINAL: Si falla, te damos el link directo para que veas que el ID es correcto
+        const backupLink = `https://api.mercadolibre.com/items/${itemId}`;
+        log.innerHTML += `<br><br>Copia y pega esto en tu navegador para ver los datos crudos:<br><a href="${backupLink}" target="_blank">${backupLink}</a>`;
     }
 }
 </script>
-
 </body>
 </html>
